@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Pixel box - Sprite and GIF Maker</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="work-area">
+      <div class="canvas-container">
+        <canvas id="canvas" width="32" height="32"></canvas>
+      </div>
+      <div class="tools-container">
+        <div class="tools play-lock">
+          <div class="">
+            <h4 for="">Make New Canvas</h4>
+          </div>
+          <div class="">
+            <label for="">Image Dimensions (virtual pixel by pixel): </label>
+            <select class="pixel-by-pixel" name=""></select>
+          </div>
+          <div class="">
+            <button type="button" name="button" onclick="createCanvas()">Make New Canvas</button>
+          </div>
+        </div>
+        <br>
+        <div class="tools play-lock">
+          <div class="">
+            <h4 for="">Editing Tools</h4>
+          </div>
+          <br>
+          <div class="">
+            <label for="">Current Frame: </label><span class="current-frame"></span>
+          </div>
+          <div class="">
+            <label for="">Color: </label>
+            <input class="color" type="color" name="" value="fff">
+          </div>
+          <div class="">
+            <button type="button" name="button" onclick="clearCanvas()">Clear The Canvas</button>
+            <button type="button" name="button" onclick="saveFrame()">Save Frame</button>
+            <button type="button" name="button" onclick="newFrame()">New Frame</button>
+          </div>
+        </div>
+        <br>
+        <div class="tools">
+          <div class="">
+            <h4 for="">Playback Tools</h4>
+          </div>
+          <div class="">
+            <button type="button" name="button" onclick="playbackFrames()">Playback Image</button>
+            <button type="button" name="button" onclick="stopPlayback()">Stop Playback</button>
+          </div>
+          <div class="">
+            <label for="">Framerate: </label>
+            <select class="framerate">
+              <option value="1">1</option>
+              <option value="15">15</option>
+              <option value="24">24</option>
+              <option value="30">30</option>
+              <option value="45">45</option>
+              <option value="48">48</option>
+              <option value="56">56</option>
+              <option value="60" selected>60</option>
+            </select>
+          </div>
+        </div>
+        <div class="tools play-lock">
+          <div class="">
+            <h4 for="">Gif Save Options</h4>
+          </div>
+          <div class="">
+            <label for=""><i>The framerate in "Playback Tools" will determine the framerate of your gif</i></label>
+          </div>
+          <div class="">
+            <button type="button" name="button" onclick="submitImages()">Save Gif</button>
+          </div>
+        </div>
+      </div>
+      <div class="frames play-lock"></div>
+    </div>
+    <script type="text/javascript">
+      var ajax = function(optionsObj) {
+        optionsObj = optionsObj || {};
+        // console.log(optionsObj.data);
+
+        var httpRequest = new XMLHttpRequest();
+        if(typeof optionsObj.upload === "function") httpRequest.upload.addEventListener("progress", optionsObj.upload, false);
+        httpRequest.onreadystatechange = function(data) {
+          if(httpRequest.readyState === 4) {
+            if(httpRequest.status < 400) {
+              if(typeof optionsObj.success === "function") {
+                optionsObj.success(data.target.response);
+              } else {
+                console.log("no success callback in ajax object");
+              }
+            } else {
+              if(typeof optionsObj.error === "function") {
+                optionsObj.error({
+                  "status": data.target.status,
+                  "message": data.target.statusText,
+                  "response": data.target.response
+                });
+              } else {
+                console.log("no error callback in ajax object. logging error below");
+                console.error(data.target.status, data.target.statusText);
+              }
+            }
+          }
+        };
+        var contentTypes = {
+          jsonp: "application/javascript; charset=UTF-8",
+          json: "application/json; charset=UTF-8",
+          text: "text/plain; charset=UTF-8",
+          formdata: "multipart/form-data; boundary=---------------------------file0123456789end"
+        };
+
+        httpRequest.open(((optionsObj.type || "").toUpperCase() || "GET"), optionsObj.url, optionsObj.multipart || true);
+        if(optionsObj.dataType) httpRequest.setRequestHeader("Content-Type", `${contentTypes[(optionsObj.dataType.toLowerCase() || "text")]}`);
+        if(typeof optionsObj.beforeSend == "function") {
+          optionsObj.beforeSend(httpRequest);
+        }
+        httpRequest.send(optionsObj.data || null);
+      };
+    </script>
+    <script type="text/javascript" src="main.js"></script>
+  </body>
+</html>
