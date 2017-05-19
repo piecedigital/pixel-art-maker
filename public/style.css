@@ -5,6 +5,7 @@ html {
 body {
   margin: 0;
   height: 100vh;
+  background-color: rgba(127, 127, 127, 0.5);
 }
 
 * {
@@ -13,7 +14,7 @@ body {
 
 .work-area {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   /*align-items: center;*/
   height: 100%;
   padding: 0 5em;
@@ -29,7 +30,7 @@ canvas {
   display: block;
   /*width: 20em;*/
   margin: auto;
-  box-shadow: 0 0 0 2px black;
+  border: 2px solid black;
   background-image: url("./transparent.png");
   background-size: 96px;
 
@@ -37,25 +38,93 @@ canvas {
 
 .tools {}
 
+.brush {
+  width: 32px;
+  height: 32px;
+}
+.brush.pencil {
+  background-image: url("./pencil.png");
+  background-size: 24px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.brush.eraser {
+  background-image: url("./eraser.png");
+  background-size: 24px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.brush-show.pencil ~ .brush.pencil,
+.brush-show.eraser ~ .brush.eraser
+{
+  box-shadow: 0 0 0 2px rgba(0, 200, 255, 1);
+}
+
 .frames {
-  display: flex;
+  /*display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: wrap;*/
+  display: table-caption;
+  width: 778px;
+  padding: 4px;
+  background-color: white;
+  overflow: auto;
 }
 
 .frames .frame {
-  height: 16px;
-  width: 8px;
-  margin-left: 8px;
-  margin-bottom: 8px;
-  background-color: black;
+  display: table-cell;
+  position: relative;
+  height: 72px;
+  width: 76px;
+  padding-left: 8px;
+  padding-top: 4px;
+  /*padding-bottom: 2px;*/
+  /*background-color: black;*/
   cursor: pointer;
 }
 
-.frames .frame.saved {
-  background-color: rgba(0, 255, 0, 1);
+.frames .frame.current:after {
+  content: "";
+  z-index: 1;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 12px solid black;
+  transform: translate(-50%, 0);
 }
 
-.frames .frame.unsaved {
-  background-color: rgba(255, 0, 0, 1);
+.frames .frame img {
+  position: relative;
+  z-index: 1;
+  max-width: 64px;
+  max-height: 64px;
+}
+
+.frames .frame:before {
+  z-index: 0;
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  width: 64px;
+  height: 64px;
+  background-image: url("./transparent.png");
+  background-size: 92px;
+}
+
+.frames .frame.saved:before {
+  box-shadow: 0 0 0 2px rgba(0, 255, 0, 1);
+}
+.frames .frame.unsaved:before {
+  box-shadow: 0 0 0 2px rgba(255, 0, 0, 1);
+}
+
+button, select, input {
+  margin: 4px;
+  padding: 8px;
+  border: 1px solid black;
+  border-radius: 8px;
+  background-color: white;
 }

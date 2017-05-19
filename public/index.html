@@ -7,9 +7,6 @@
   </head>
   <body>
     <div class="work-area">
-      <div class="canvas-container">
-        <canvas id="canvas" width="32" height="32"></canvas>
-      </div>
       <div class="tools-container">
         <div class="tools play-lock">
           <div class="">
@@ -23,12 +20,10 @@
             <button type="button" name="button" onclick="createCanvas()">Make New Canvas</button>
           </div>
         </div>
-        <br>
         <div class="tools play-lock">
           <div class="">
             <h4 for="">Editing Tools</h4>
           </div>
-          <br>
           <div class="">
             <label for="">Current Frame: </label><span class="current-frame"></span>
           </div>
@@ -36,13 +31,22 @@
             <label for="">Color: </label>
             <input class="color" type="color" name="" value="fff">
           </div>
+          <div class="brushes">
+            <span class="brush-show pencil"></span>
+            <button class="brush pencil" title="Pencil tool" type="button" name="button" onclick="setTool('pencil')"></button>
+            <button class="brush eraser" title="Eraser tool" type="button" name="button" onclick="setTool('eraser')"></button>
+          </div>
           <div class="">
             <button type="button" name="button" onclick="clearCanvas()">Clear The Canvas</button>
             <button type="button" name="button" onclick="saveFrame()">Save Frame</button>
             <button type="button" name="button" onclick="newFrame()">New Frame</button>
+            <button type="button" name="button" onclick="newFrame(true)">New Empty Frame</button>
+          </div>
+          <div class="">
+            <button type="button" name="button" onclick="remove()">Remove Current Frame</button>
+            <button type="button" name="button" onclick="insert()">Insert After Current Frame</button>
           </div>
         </div>
-        <br>
         <div class="tools">
           <div class="">
             <h4 for="">Playback Tools</h4>
@@ -77,7 +81,12 @@
           </div>
         </div>
       </div>
-      <div class="frames play-lock"></div>
+      <div class="canvas-container">
+        <div class="frames play-lock">
+          <div class="frame"></div>
+        </div>
+        <canvas id="canvas" width="32" height="32"></canvas>
+      </div>
     </div>
     <script type="text/javascript">
       var ajax = function(optionsObj) {

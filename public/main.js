@@ -1,9 +1,11 @@
 // initial stuff
 NodeList.prototype.map = Array.prototype.map;
+NodeList.prototype.slice = Array.prototype.slice;
 
 // console.log(canvas);
 var workArea = document.getElementsByClassName("work-area")[0];
 var tools = workArea.getElementsByClassName("tools-container")[0];
+var brushes = workArea.getElementsByClassName("brushes")[0];
 var frames = workArea.getElementsByClassName("frames")[0];
 var pixelByPixel = tools.getElementsByClassName("pixel-by-pixel")[0];
 var currentFrameDisplay = tools.getElementsByClassName("current-frame")[0];
@@ -51,35 +53,39 @@ function initCanvas(canvas, contextValue, pixel) {
   var ctx = canvas.getContext(contextValue);
 
   listenerFunctions.click = function (e) {
-    drawPixel(e, {
+    drawPixel(mouseGridPosition(e, {
       pixel,
       canvas,
       ctx,
       w,
       h
-    })
+    }))
   };
   canvas.addEventListener("click", listenerFunctions.click);
 
   listenerFunctions.mousemove = function(e) {
-    if(e.button === 0 && e.buttons === 1) drawPixel(e, {
+    if(e.button === 0 && e.buttons === 1) drawPixel(mouseGridPosition(e, {
       pixel,
       canvas,
       ctx,
       w,
       h
-    });
+    }));
   };
   canvas.addEventListener("mousemove", listenerFunctions.mousemove);
 }
 
-function drawPixel (e, {
-  pixel,
-  canvas,
-  ctx,
-  w,
-  h
-}) {
+var brushTool = "pencil";
+
+function mouseGridPosition(e,
+  {
+    pixel,
+    canvas,
+    ctx,
+    w,
+    h
+  }) {
+  if(!canvas) ({ canvas, context: ctx } = getCanvasAndContext());
   // console.log("click", e);
   var mX = e.offsetX;
   var mY = e.offsetY;
@@ -90,16 +96,58 @@ function drawPixel (e, {
   var y = (pixelPlaceH/pixel) * h;
   // console.log(pixelPlaceW, x);
   // console.log(ctx.globalCompositeOperation);
-  if(e.ctrlKey) {
-    ctx.globalCompositeOperation = "destination-out"
-    ctx.fillStyle = "rgba(255,255,255,1)";
-  } else {
-    ctx.globalCompositeOperation = "source-over"
-    ctx.fillStyle = colorElement.value;
+  var data = {
+    left: x,
+    top: y,
+    right: w/pixel,
+    bottom: h/pixel,
+    canvasWidth: w,
+    canvasHeight: h,
+    pixel,
+    canvas,
+    context: ctx,
+    drawnPixelWidth: w/pixel,
+    drawnPixelHeight: h/pixel,
+  };
+  data.centerX = data.left + (data.right / 2);
+  data.centerY = data.top + (data.bottom / 2);
+  // console.log(data);
+  return data;
+}
+
+function drawPixel (data) {
+  var {
+    left,
+    top,
+    right,
+    bottom,
+    centerX,
+    centerY,
+    pixel,
+    canvas,
+    context: ctx
+  } = data;
+
+  switch (brushTool) {
+    case "pencil":
+      ctx.globalCompositeOperation = "source-over"
+      ctx.fillStyle = colorElement.value;
+      ctx.fillRect(left, top, right, bottom);
+    break;
+    case "eraser":
+      ctx.globalCompositeOperation = "destination-out"
+      ctx.fillStyle = "rgba(255,255,255,1)";
+      ctx.fillRect(left, top, right, bottom);
+    break;
   }
-  ctx.fillRect(x, y, w/pixel, h/pixel);
 
   markUnsavedFrame(currentFrame);
+}
+
+function setTool(toolName) {
+  // console.log(toolName);
+  brushes.querySelector(".brush-show").className = "brush-show " + toolName;
+  brushTool = toolName;
 }
 
 function clearCanvas() {
@@ -116,11 +164,26 @@ function clearCanvas() {
   ctx.globalCompositeOperation = "source-over"
 }
 
-var framesArray = [], currentFrame = 0, playbackRunning = false, playbackInterval = null;
+var framesArray = [], currentFrame = 0, playbackRunning = false, playbackInterval = null, unsavedFrame = false;
 
 function setCurrentFrame(frame) {
   currentFrameDisplay.innerText = frame+1;
+
+
+  var frameElems = frames.querySelectorAll(".frame");
+  var currentFrameElem = frames.querySelector(".frame.frame-" + frame);
+  if(frameElems)
+    frameElems.map(function (frameElem) {
+      frameElem.className = frameElem.className.replace(/(\s+)?current/, "");
+    });
+  else
+    console.log("no elem");
+  // set the new current frame after using the old one
   currentFrame = frame;
+  if(currentFrameElem)
+    currentFrameElem.className = currentFrameElem.className + " current";
+  else
+    console.log("no elem");
 }
 
 function storeImageData() {
@@ -129,11 +192,13 @@ function storeImageData() {
   // var place = framesArray.length > 0 ? framesArray.length - 1 : 0;
   framesArray[currentFrame] = data;
   markSavedFrame(currentFrame);
-  // return currentFrame;
+  updateDisplayFrame(currentFrame);
 }
 
 function markSavedFrame(frame) {
+  unsavedFrame = false;
   var displayFrame = frames.querySelector(".frame.frame-" + frame);
+  if(!displayFrame) return;
   if( displayFrame.className.match("saved") && !displayFrame.className.match("unsaved") ) return
   if( displayFrame.className.match("unsaved") ) {
     displayFrame.className = displayFrame.className.replace("unsaved", "saved");
@@ -143,7 +208,9 @@ function markSavedFrame(frame) {
 }
 
 function markUnsavedFrame(frame) {
+  unsavedFrame = true;
   var displayFrame = frames.querySelector(".frame.frame-" + frame);
+  if(!displayFrame) return;
   if( displayFrame.className.match("unsaved") ) return
   if( displayFrame.className.match("saved") ) {
     displayFrame.className = displayFrame.className.replace("saved", "unsaved");
@@ -154,7 +221,7 @@ function markUnsavedFrame(frame) {
 
 function openImage(place) {
   var ctx = canvas.getContext("2d");
-  ctx.putImageData(framesArray[place], 0, 0);
+  if(framesArray[place]) ctx.putImageData(framesArray[place], 0, 0);
 }
 
 function saveFrame() {
@@ -162,7 +229,7 @@ function saveFrame() {
   storeImageData();
 }
 
-function newFrame() {
+function newFrame(emptyCanvas) {
   console.log("next image");
   storeImageData();
   if(framesArray[framesArray.length-1]) {
@@ -172,13 +239,58 @@ function newFrame() {
   currentFrame = framesArray.length - 1;
   openImage(currentFrame - 1);
   setCurrentFrame(currentFrame);
+  if(emptyCanvas) clearCanvas();
   // console.log(currentFrame, framesArray.length);
 }
 
-function addDisplayFrame(place) {
+function removeFrame(place) {
+  // removed image data from framesArray
+  framesArray.splice(place, 1);
+  editFrames(place, "remove");
+}
+
+function insertFrame(place) {
+  framesArray.splice(place+1, 0, null)
+  editFrames(place, "insert");
+}
+
+function editFrames(place, action) {
+  var number = action === "remove" ? -1 : 1;
+  if(action === "remove") {
+
+    // remove display frame
+    var frameElem = frames.querySelector(".frame.frame-" + place);
+    console.log("removing", place, frameElem);
+    frames.removeChild(frameElem);
+  }
+  if(action === "insert") {
+    insertDisplayFrame(place+1);
+  }
+  // change class and dataset of the frames ahead
+  for(var i = place+1; i < framesArray.length+(action === "remove" ? 1 : -1); i++) {
+    var elem = frames.querySelectorAll(".frame.frame-" + i).slice(-1)[0];
+    console.log("changing", i, elem, ".frame.frame-" + i);
+    elem.className = elem.className.replace(/frame\-[0-9]+/, "frame-" + (i+number));
+    elem.dataset.frame = (i+number);
+  }
+
+
+  if(currentFrame > place) currentFrame += number;
+  setCurrentFrame(currentFrame);
+
+  if(framesArray.length < 1) addDisplayFrame(0);
+}
+
+function createDisplayFrame(place) {
   var frame = document.createElement("div");
   frame.className = "frame frame-" + place;
-  frame.addEventListener("click", function () {
+  frame.dataset.frame = place;
+  frame.addEventListener("click", function (e) {
+    var place = parseInt(frame.dataset.frame);
+    // check if they're okay with leaving the frame with unsaved data
+
+    if(!checkUnsavedFrame()) return;
+    console.log(place);
     try {
       markSavedFrame(currentFrame);
       openImage(place);
@@ -187,7 +299,44 @@ function addDisplayFrame(place) {
     }
     setCurrentFrame(place);
   });
+  return frame;
+}
+
+function addDisplayFrame(place) {
+  var frame = createDisplayFrame(place);
   frames.appendChild(frame)
+}
+
+function insertDisplayFrame(place) {
+  place = parseInt(place);
+  var frame = createDisplayFrame(place);
+  var nextFrame = frames.querySelector(".frame.frame-" + (place))
+  // console.log("action insert", place, nextFrame);
+  frames.insertBefore(frame, nextFrame);
+}
+
+function updateDisplayFrame(place) {
+  var image;
+  if(framesArray[place]) {
+    image = document.createElement("img");
+    image.src = getImageDataURL(framesArray[place]);
+  }
+
+  var frame = document.querySelector(".frame.frame-" + place);
+  frame.innerHTML = "";
+  if(image) frame.appendChild(image);
+}
+
+function remove(place) {
+  place = parseInt(place) || currentFrame;
+  // if(!framesArray[place]) return alert("This frame has no saved data");
+  removeFrame(place);
+  if(currentFrame === place) openImage(place);
+}
+
+function insert(place) {
+  place = parseInt(place) || currentFrame;
+  insertFrame(place);
 }
 
 function removeListeners() {
@@ -248,9 +397,9 @@ function enableOrDisableTools(whichTools, action) {
 function createCanvas() {
   // console.log(parseInt(pixelByPixel.value));
   removeListeners();
-  setCurrentFrame(0);
   resetFrames();
   addDisplayFrame(0);
+  setCurrentFrame(0);
   initCanvas(canvas, "2d", parseInt(pixelByPixel.value));
 }
 
@@ -274,6 +423,7 @@ function getCanvasAndContext(isNew) {
 }
 
 function submitImages() {
+  if(!checkUnsavedFrame()) return;
   // var imageBlobs = [];
   var imageDataURLs = [];
   framesArray.map(function (imageData, ind) {
@@ -336,4 +486,15 @@ function parseImageDataURL(url) {
 function endOfArray(arr, ind) {
   console.log("end of array");
   return arr.length - 1 === ind;
+}
+
+function checkUnsavedFrame() {
+  if(unsavedFrame) {
+    return confirm("The current frame has not been saved. Are you sure you want to continue?");
+  }
+  return true;
+}
+
+function checkDelete() {
+  return confirm("Are you sure you want to delete this frame?");
 }
