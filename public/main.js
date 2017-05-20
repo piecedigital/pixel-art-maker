@@ -24,15 +24,15 @@ var PIXEL_RATIO = (function () {
   return dpr / bsr;
 })();
 
-var makeCanvas = function (w, h, ratio, newCanvas) {
+var makeCanvas = function (overlay, w, h, ratio, newCanvas) {
   var ratio = ratio || PIXEL_RATIO;
-  var canvas = newCanvas ? document.createElement("canvas") : workArea.getElementsByTagName("canvas")[0];
-  canvas.width = w * ratio;
-  canvas.height = h * ratio;
-  // canvas.style.width = w + "px";
-  // canvas.style.height = h + "px";
-  canvas.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
-  return canvas;
+  var thisCanvas = newCanvas ? document.createElement("canvas") : (overlay ? brushoverlay : canvas);
+  thisCanvas.width = w * ratio;
+  thisCanvas.height = h * ratio;
+  // thisCanvas.style.width = w + "px";
+  // thisCanvas.style.height = h + "px";
+  thisCanvas.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
+  return thisCanvas;
 }
 // ///////////////////////////////////////////////////////////
 
@@ -46,10 +46,10 @@ function initCanvas(canvas, contextValue, pixel) {
   w = editorDimensionMultiplier/*pixel*( (pixel*pixel) / (2) * 10 )*/,
   h = editorDimensionMultiplier/*pixel*( (pixel*pixel) / (2) * 10 )*/;// Math.round( (32 / canvas.offsetWidth) * w);
   // console.log(editorDimensionMultiplier);
-  if(Object.prototype.toString.call(canvas) !== "[object HTMLCanvasElement]") return console.error("1st argument needs to be an HTML canvas element");
-  if(typeof contextValue !== "string") return console.error("2nd argument needs to be a string denoting a 2d or 3d context of the canvas");
+  if(Object.prototype.toString.call(canvas) !== "[object HTMLCanvasElement]") return;// console.error("1st argument needs to be an HTML canvas element");
+  if(typeof contextValue !== "string") return;// console.error("2nd argument needs to be a string denoting a 2d or 3d context of the canvas");
 
-  var canvas = makeCanvas(w,h);
+  var canvas = makeCanvas(false, w,h), brushoverlay = makeCanvas(true, w,h);
   var ctx = canvas.getContext(contextValue);
 
   listenerFunctions.click = function (e) {
@@ -64,13 +64,17 @@ function initCanvas(canvas, contextValue, pixel) {
   canvas.addEventListener("click", listenerFunctions.click);
 
   listenerFunctions.mousemove = function(e) {
-    if(e.button === 0 && e.buttons === 1) drawPixel(mouseGridPosition(e, {
+    var mouseData = mouseGridPosition(e, {
       pixel,
       canvas,
       ctx,
       w,
       h
-    }));
+    });
+    if(e.button === 0 && e.buttons === 1) {
+      drawPixel(mouseData);
+    }
+    drawTool(mouseData);
   };
   canvas.addEventListener("mousemove", listenerFunctions.mousemove);
 }
@@ -128,6 +132,7 @@ function drawPixel (data) {
     context: ctx
   } = data;
 
+  // console.log(canvas);
   switch (brushTool) {
     case "pencil":
       ctx.globalCompositeOperation = "source-over"
@@ -144,18 +149,28 @@ function drawPixel (data) {
   markUnsavedFrame(currentFrame);
 }
 
+function drawTool(data) {
+  var { canvas, context: ctx } = getCanvasAndContext(false, true);
+
+  clearCanvas(true);
+  drawPixel(Object.assign(data, {
+    canvas,
+    context: ctx
+  }));
+}
+
 function setTool(toolName) {
   // console.log(toolName);
   brushes.querySelector(".brush-show").className = "brush-show " + toolName;
   brushTool = toolName;
 }
 
-function clearCanvas() {
+function clearCanvas(overlay) {
   // get canvas
-  var data = getCanvasAndContext();
+  var data = getCanvasAndContext(false, overlay);
   var canvas = data.canvas;
   var ctx = data.context;
-  console.log("clear", canvas);
+  // console.log("clear", canvas);
   // erase
   ctx.globalCompositeOperation = "destination-out"
   ctx.fillStyle = "rgba(255,255,255,1)";
@@ -176,14 +191,14 @@ function setCurrentFrame(frame) {
     frameElems.map(function (frameElem) {
       frameElem.className = frameElem.className.replace(/(\s+)?current/, "");
     });
-  else
-    console.log("no elem");
+  // else
+    // console.log("no elem");
   // set the new current frame after using the old one
   currentFrame = frame;
   if(currentFrameElem)
     currentFrameElem.className = currentFrameElem.className + " current";
-  else
-    console.log("no elem");
+  // else
+    // console.log("no elem");
 }
 
 function storeImageData() {
@@ -224,13 +239,19 @@ function openImage(place) {
   if(framesArray[place]) ctx.putImageData(framesArray[place], 0, 0);
 }
 
+function goToFrame(place) {
+  if(!checkUnsavedFrame()) return;
+  openImage(place);
+  setCurrentFrame(place);
+}
+
 function saveFrame() {
-  console.log("saved image");
+  // console.log("saved image");
   storeImageData();
 }
 
 function newFrame(emptyCanvas) {
-  console.log("next image");
+  // console.log("next image", emptyCanvas);
   storeImageData();
   if(framesArray[framesArray.length-1]) {
     framesArray.push(void(0));
@@ -260,7 +281,7 @@ function editFrames(place, action) {
 
     // remove display frame
     var frameElem = frames.querySelector(".frame.frame-" + place);
-    console.log("removing", place, frameElem);
+    // console.log("removing", place, frameElem);
     frames.removeChild(frameElem);
   }
   if(action === "insert") {
@@ -269,7 +290,7 @@ function editFrames(place, action) {
   // change class and dataset of the frames ahead
   for(var i = place+1; i < framesArray.length+(action === "remove" ? 1 : -1); i++) {
     var elem = frames.querySelectorAll(".frame.frame-" + i).slice(-1)[0];
-    console.log("changing", i, elem, ".frame.frame-" + i);
+    // console.log("changing", i, elem, ".frame.frame-" + i);
     elem.className = elem.className.replace(/frame\-[0-9]+/, "frame-" + (i+number));
     elem.dataset.frame = (i+number);
   }
@@ -290,12 +311,12 @@ function createDisplayFrame(place) {
     // check if they're okay with leaving the frame with unsaved data
 
     if(!checkUnsavedFrame()) return;
-    console.log(place);
+    // console.log(place);
     try {
       markSavedFrame(currentFrame);
       openImage(place);
     } catch (e) {
-      console.error(e);
+      // console.error(e);
     }
     setCurrentFrame(place);
   });
@@ -357,7 +378,7 @@ function playbackFrames() {
   playbackRunning = true;
   enableOrDisableTools("playback", "disable");
   var f = 0;
-  console.log(parseInt(framerate.value));
+  // console.log(parseInt(framerate.value));
   var tick = function() {
     setTimeout(function() {
       if(!playbackRunning) return;
@@ -411,9 +432,12 @@ for(var i = 1; i <= 16; i++) {
   pixelByPixel.appendChild(opt);
 }
 
-function getCanvasAndContext(isNew) {
+function getCanvasAndContext(isNew, overlay) {
+  // isNew - if true, returns a new canvas
+  // ovelay - if true, returns the overlay canvas
+  var thisCanvas = overlay ? brushoverlay : canvas;
   // http://stackoverflow.com/a/934925/4107851
-  var tempCanvas = isNew ? makeCanvas(canvas.offsetWidth, canvas.offsetHeight, null, true) : canvas;
+  var tempCanvas = isNew ? makeCanvas(overlay, canvas.offsetWidth, canvas.offsetHeight, null, true) : brushoverlay;
   // console.log(tempCanvas);
   var ctx = tempCanvas.getContext("2d");
   return {
@@ -428,7 +452,7 @@ function submitImages() {
   var imageDataURLs = [];
   framesArray.map(function (imageData, ind) {
     if(!imageData) return;
-    console.log("working on saving images");
+    // console.log("working on saving images");
     var parsedDataURL = parseImageDataURL(getImageDataURL(imageData));
     imageDataURLs.push(parsedDataURL);
     // getImageBlob(function (blob) {
@@ -477,14 +501,14 @@ function getImageDataURL(imageData) {
 }
 
 function parseImageDataURL(url) {
-  console.log("parsing image data url");
+  // console.log("parsing image data url");
   var parsedURL = url.replace(/^data:image\/(png|jpg);base64,/, "");
   // console.log(parsedURL);
   return parsedURL;
 }
 
 function endOfArray(arr, ind) {
-  console.log("end of array");
+  // console.log("end of array");
   return arr.length - 1 === ind;
 }
 
@@ -498,3 +522,17 @@ function checkUnsavedFrame() {
 function checkDelete() {
   return confirm("Are you sure you want to delete this frame?");
 }
+
+// buttons events
+document.addEventListener("keydown", function (e) {
+  // console.log(e);
+  switch (e.key.toLowerCase()) {
+    case "e": setTool("eraser"); break;
+    case "q": setTool("pencil"); break;
+    case "c": if(e.ctrlKey) clearCanvas(); break;
+    case "n": newFrame(e.shiftKey); break;
+    case "s": saveFrame(); break;
+    case "[": if(e.ctrlKey) goToFrame(currentFrame-1); break;
+    case "]": if(e.ctrlKey) goToFrame(currentFrame+1); break;
+  }
+});
