@@ -43,14 +43,31 @@ body {
 }
 
 #brushoverlay {
-  display: none;
+  /*display: none;*/
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  background-color: rgba(0, 255, 0, .2);
+  /*background-color: rgba(0, 255, 0, .2);*/
+}
+
+.cursor {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  /*background-color: red;*/
+  border: 2px outset black;
+  transition: 0s all linear;
+  pointer-events: none;
+}
+
+.cursor-changer.eraser ~ .cursor {
+  border-style: dotted;
+}
+.cursor-changer.select ~ .cursor {
+  border-style: dashed;
 }
 
 .tools {}
@@ -58,29 +75,31 @@ body {
 .brush {
   width: 32px;
   height: 32px;
+  background-size: 24px;
+  background-repeat: no-repeat;
+  background-position: center;
 }
+
 .brush.pencil {
   background-image: url("./pencil.png");
-  background-size: 24px;
-  background-repeat: no-repeat;
-  background-position: center;
 }
+
 .brush.eraser {
   background-image: url("./eraser.png");
-  background-size: 24px;
-  background-repeat: no-repeat;
-  background-position: center;
 }
+
+.brush.select {
+  background-image: url("./select.png");
+}
+
 .brush-show.pencil ~ .brush.pencil,
-.brush-show.eraser ~ .brush.eraser
+.brush-show.eraser ~ .brush.eraser,
+.brush-show.select ~ .brush.select
 {
   box-shadow: 0 0 0 2px rgba(0, 200, 255, 1);
 }
 
 .frames {
-  /*display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;*/
   display: table-caption;
   width: 778px;
   margin-bottom: 8px;
@@ -96,8 +115,6 @@ body {
   width: 76px;
   padding-left: 8px;
   padding-top: 4px;
-  /*padding-bottom: 2px;*/
-  /*background-color: black;*/
   cursor: pointer;
 }
 

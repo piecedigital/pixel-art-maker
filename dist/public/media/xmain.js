@@ -74,7 +74,7 @@ function initCanvas(canvas, contextValue, pixel) {
     if(e.button === 0 && e.buttons === 1) {
       drawPixel(mouseData);
     }
-    drawTool(mouseData);
+    drawOnToolOverlay(mouseData);
   };
   canvas.addEventListener("mousemove", listenerFunctions.mousemove);
 }
@@ -101,18 +101,18 @@ function mouseGridPosition(e,
   // console.log(pixelPlaceW, x);
   // console.log(ctx.globalCompositeOperation);
   var data = {
-    left: x,
-    top: y,
-    right: w/pixel,
-    bottom: h/pixel,
+    left: x < 0 ? 0 : x,
+    top: y < 0 ? 0 : y,
     canvasWidth: w,
     canvasHeight: h,
     pixel,
     canvas,
     context: ctx,
-    drawnPixelWidth: w/pixel,
-    drawnPixelHeight: h/pixel,
+    width: w/pixel,
+    height: h/pixel,
   };
+  data.right = x + data.width;
+  data.bottom = y + data.height;
   data.centerX = data.left + (data.right / 2);
   data.centerY = data.top + (data.bottom / 2);
   // console.log(data);
@@ -123,8 +123,8 @@ function drawPixel (data) {
   var {
     left,
     top,
-    right,
-    bottom,
+    width,
+    height,
     centerX,
     centerY,
     pixel,
@@ -137,31 +137,38 @@ function drawPixel (data) {
     case "pencil":
       ctx.globalCompositeOperation = "source-over"
       ctx.fillStyle = colorElement.value;
-      ctx.fillRect(left, top, right, bottom);
+      ctx.fillRect(left, top, width, height);
     break;
     case "eraser":
       ctx.globalCompositeOperation = "destination-out"
       ctx.fillStyle = "rgba(255,255,255,1)";
-      ctx.fillRect(left, top, right, bottom);
+      ctx.fillRect(left, top, width, height);
     break;
   }
 
   markUnsavedFrame(currentFrame);
 }
 
-function drawTool(data) {
+function drawOnToolOverlay(data) {
   var { canvas, context: ctx } = getCanvasAndContext(false, true);
 
   clearCanvas(true);
-  drawPixel(Object.assign(data, {
-    canvas,
-    context: ctx
-  }));
+  // drawPixel(Object.assign(data, {
+  //   canvas,
+  //   context: ctx
+  // }));
+  // console.log(data);
+  var cursor = workArea.querySelector(".cursor");
+  cursor.style.top = data.top+"px";
+  cursor.style.left = data.left+"px";
+  cursor.style.width = data.width+"px";
+  cursor.style.height = data.height+"px";
 }
 
 function setTool(toolName) {
   // console.log(toolName);
   brushes.querySelector(".brush-show").className = "brush-show " + toolName;
+  workArea.querySelector(".cursor-changer").className = "cursor-changer " + toolName;
   brushTool = toolName;
 }
 
@@ -531,7 +538,7 @@ document.addEventListener("keydown", function (e) {
     case "q": setTool("pencil"); break;
     case "c": if(e.ctrlKey) clearCanvas(); break;
     case "n": newFrame(e.shiftKey); break;
-    case "s": saveFrame(); break;
+    case "s": if(e.ctrlKey) { saveFrame(); } else { /*setTool("select")*/ } break;
     case "[": if(e.ctrlKey) goToFrame(currentFrame-1); break;
     case "]": if(e.ctrlKey) goToFrame(currentFrame+1); break;
   }
