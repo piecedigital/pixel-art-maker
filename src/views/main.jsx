@@ -1,4 +1,7 @@
 import React from "react";
+import { render } from "react-dom";
+
+this.listenerFunctions = {};
 
 const SelectOption = React.createClass({
   render() {
@@ -21,6 +24,9 @@ const Canvas = React.createClass({
   },
   openImage(place) {
     this.ctx.putImageData(this.props.data, 0, 0);
+  },
+  clearCanvas() {
+    wipeCanvas(this.canvas);
   },
 
   componentWillReceiveProps() {
@@ -92,15 +98,17 @@ const CanvasContainer = React.createClass({
     this.refs.brushoverlay.addEventListener("mousemove", listenerFunctions.mousemove);
   },
   mouseGridPosition(e, { w, h }) {
-    if(!canvas) ({ canvas, context: ctx } = getCanvasAndContext());
+    // if(!canvas) ({ canvas, context: ctx } = getCanvasAndContext());
     // console.log("click", e);
-    var mX = e.offsetX;
-    var mY = e.offsetY;
+    const canvas = this.refs.brushoverlay;
+    const ctx = this.ctx;
+    const mX = e.offsetX;
+    const mY = e.offsetY;
     // console.log( Math.round( (mX / canvas.offsetWidth) * pixel) );
-    var pixelPlaceW = Math.floor( (mX / canvas.offsetWidth) * pixel);
-    var pixelPlaceH = Math.floor( (mY / canvas.offsetHeight) * pixel);
-    var x = (pixelPlaceW/pixel) * w;
-    var y = (pixelPlaceH/pixel) * h;
+    const pixelPlaceW = Math.floor( (mX / canvas.offsetWidth) * pixel);
+    const pixelPlaceH = Math.floor( (mY / canvas.offsetHeight) * pixel);
+    const x = (pixelPlaceW/pixel) * w;
+    const y = (pixelPlaceH/pixel) * h;
     // console.log(pixelPlaceW, x);
     // console.log(ctx.globalCompositeOperation);
     var data = {
@@ -148,7 +156,39 @@ const CanvasContainer = React.createClass({
       break;
     }
 
-    markUnsavedFrame(currentFrame);
+    this.props.methods.markUnsavedFrame(currentFrame);
+  },
+  drawOnToolOverlay(data) {
+    clearCanvas(true);
+    // drawPixel(Object.assign(data, {
+    //   canvas,
+    //   context: ctx
+    // }));
+    // console.log(data);
+    var cursor = this.refs.cursor;
+    cursor.style.top = data.top+"px";
+    cursor.style.left = data.left+"px";
+    cursor.style.width = data.width+"px";
+    cursor.style.height = data.height+"px";
+  },
+  clearCanvas(overlay) {
+    const {
+      imageObjectData,
+      frame
+    } = this.state;
+
+    if(overlay) {
+      wipeCanvas(this.refs.brushoverlay);
+    } else {
+      imageObjectData[frame].map((_, ind) => {
+        this.refs[`layer${ind}`].clearCanvas();
+      });
+    }
+  },
+  setCurrentFrame(place) {
+    this.setState({
+      frame: place
+    })
   },
 
   componentDidMount() {
@@ -175,8 +215,9 @@ const CanvasContainer = React.createClass({
         <div className="frames play-lock"></div>
         <span className="canvas-wrap">
           {
-            imageObjectData[frame].map((data, ind) => {
-              return <Canvas key={ind} ref={`layer-${ind}`} {...{
+            // imageObjectData[frame].map((data, ind) => {
+            imageObjectData.map((data, ind) => {
+              return <Canvas key={ind} ref={`layer${ind}`} {...{
                 data,
                 canvasProperties,
                 layer
@@ -185,7 +226,7 @@ const CanvasContainer = React.createClass({
           }
           <canvas ref="brushoverlay" id="brushoverlay" width="0" height="0"></canvas>
           <div className="cursor-changer"></div>
-          <div className="cursor"></div>
+          <div ref="cursor" className="cursor"></div>
         </span>
       </div>
     );
@@ -193,7 +234,35 @@ const CanvasContainer = React.createClass({
 });
 
 const ToolsContainer = React.createClass({
+  getInitialState() {
+    return {
+      brushTools: ["pencil", "eraser"]
+    }
+  },
+
+  goToFrame(index) {
+    const {
+      methods: {
+        checkUnsavedFrame,
+        setCurrentFrame
+      }
+    } = this.props;
+
+    if(!checkUnsavedFrame()) return;
+    // openImage(index);
+    setCurrentFrame(index);
+  },
+
   render() {
+    const {
+      brushTools,
+      methods: {
+        setTool,
+        clearCanvas,
+        createCanvas
+      }
+    } = this.props
+
     return (
       <div className="tools-container">
         <div className="tools play-lock">
@@ -205,7 +274,7 @@ const ToolsContainer = React.createClass({
             <select className="pixel-by-pixel" name=""></select>
           </div>
           <div className="">
-            <button type="button" name="button" onClick="createCanvas()">Make New Canvas</button>
+            <button type="button" name="button" onClick={createCanvas.bind(null)}>Make New Canvas</button>
           </div>
         </div>
         <div className="tools play-lock">
@@ -220,20 +289,22 @@ const ToolsContainer = React.createClass({
             <input className="color" type="color" name="" value="fff"/>
           </div>
           <div className="brushes">
-            <span className="brush-show pencil"></span>
-            <button className="brush pencil" title="Pencil tool" type="button" name="button" onClick="setTool('pencil')"></button>
-            <button className="brush eraser" title="Eraser tool" type="button" name="button" onClick="setTool('eraser')"></button>
-            {/* <button className="brush select" title="Select tool" type="button" name="button" onClick="setTool('select')"></button> */}
+            <span className={`brush-show ${brushTool}`}></span>
+            {
+              brushTools.map(tool => {
+                <button className={`brush ${tool}`} title={`${tool.toUpperCase()} tool`} type="button" name="button" onClick={setTool.bind(null, 'pencil')}></button>
+              })
+            }
           </div>
           <div className="">
-            <button type="button" name="button" onClick="clearCanvas()">Clear The Canvas</button>
-            <button type="button" name="button" onClick="saveFrame()">Save Frame</button>
-            <button type="button" name="button" onClick="newFrame()">New Frame</button>
-            <button type="button" name="button" onClick="newFrame(true)">New Empty Frame</button>
+            <button type="button" name="button" onClick={clearCanvas.bind(null)}>Clear The Canvas</button>
+            <button type="button" name="button" onClick={saveFrame.bind(null)}>Save Frame</button>
+            <button type="button" name="button" onClick={newFrame.bind(null)}>New Frame</button>
+            <button type="button" name="button" onClick={newFrame.bind(null, true)}>New Empty Frame</button>
           </div>
           <div className="">
-            <button type="button" name="button" onClick="remove()">Remove Current Frame</button>
-            <button type="button" name="button" onClick="insert()">Insert After Current Frame</button>
+            <button type="button" name="button" onClick={remove.bind(null)}>Remove Current Frame</button>
+            <button type="button" name="button" onClick={insert.bind(null)}>Insert After Current Frame</button>
           </div>
         </div>
         <div className="tools">
@@ -241,8 +312,8 @@ const ToolsContainer = React.createClass({
             <h4 for="">Playback Tools</h4>
           </div>
           <div className="">
-            <button type="button" name="button" onClick="playbackFrames()">Playback Image</button>
-            <button type="button" name="button" onClick="stopPlayback()">Stop Playback</button>
+            <button type="button" name="button" onClick={playbackFrames.bind(null)}>Playback Image</button>
+            <button type="button" name="button" onClick={stopPlayback.bind(null)}>Stop Playback</button>
           </div>
           <div className="">
             <label for="">Framerate: </label>
@@ -271,7 +342,7 @@ const ToolsContainer = React.createClass({
   }
 });
 
-export default React.createClass({
+const Root = React.createClass({
   displayName: "Root",
   getInitialState() {
     // http://stackoverflow.com/a/15666143/4107851
@@ -293,7 +364,6 @@ export default React.createClass({
     }
     return ({
       brushTool: "pencil",
-      framesArray: [],
       currentFrame: 0,
       playbackRunning: false,
       playbackInterval: null,
@@ -419,58 +489,64 @@ export default React.createClass({
   //
   //   markUnsavedFrame(currentFrame);
   // },
-  drawOnToolOverlay(data) {
-    var { canvas, context: ctx } = getCanvasAndContext(false, true);
-
-    clearCanvas(true);
-    // drawPixel(Object.assign(data, {
-    //   canvas,
-    //   context: ctx
-    // }));
-    // console.log(data);
-    var cursor = workArea.querySelector(".cursor");
-    cursor.style.top = data.top+"px";
-    cursor.style.left = data.left+"px";
-    cursor.style.width = data.width+"px";
-    cursor.style.height = data.height+"px";
-  },
+  // drawOnToolOverlay(data) {
+  //   var { canvas, context: ctx } = getCanvasAndContext(false, true);
+  //
+  //   clearCanvas(true);
+  //   // drawPixel(Object.assign(data, {
+  //   //   canvas,
+  //   //   context: ctx
+  //   // }));
+  //   // console.log(data);
+  //   var cursor = workArea.querySelector(".cursor");
+  //   cursor.style.top = data.top+"px";
+  //   cursor.style.left = data.left+"px";
+  //   cursor.style.width = data.width+"px";
+  //   cursor.style.height = data.height+"px";
+  // },
+  // goToFrame(place) {
+  //   if(!checkUnsavedFrame()) return;
+  //   openImage(place);
+  //   setCurrentFrame(place);
+  // },
   setTool(toolName) {
     // console.log(toolName);
-    brushes.querySelector(".brush-show").className = "brush-show " + toolName;
-    workArea.querySelector(".cursor-changer").className = "cursor-changer " + toolName;
-    brushTool = toolName;
+    this.setState({
+      brushTool: toolName
+    });
   },
   clearCanvas(overlay) {
-    // get canvas
-    var data = getCanvasAndContext(false, overlay);
-    var canvas = data.canvas;
-    var ctx = data.context;
-    // console.log("clear", canvas);
-    // erase
-    ctx.globalCompositeOperation = "destination-out"
-    ctx.fillStyle = "rgba(255,255,255,1)";
-    ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-    // return to original comp
-    ctx.globalCompositeOperation = "source-over"
+    // // get canvas
+    // var data = getCanvasAndContext(false, overlay);
+    // var canvas = data.canvas;
+    // var ctx = data.context;
+    // // console.log("clear", canvas);
+    // // erase
+    // ctx.globalCompositeOperation = "destination-out"
+    // ctx.fillStyle = "rgba(255,255,255,1)";
+    // ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+    // // return to original comp
+    // ctx.globalCompositeOperation = "source-over"
+    this.refs.canvasContainer.clearCanvas(overlay);
   },
   setCurrentFrame(frame) {
-    currentFrameDisplay.innerText = frame+1;
-
-
-    var frameElems = frames.querySelectorAll(".frame");
-    var currentFrameElem = frames.querySelector(".frame.frame-" + frame);
-    if(frameElems)
-      frameElems.map(function (frameElem) {
-        frameElem.className = frameElem.className.replace(/(\s+)?current/, "");
-      });
-    // else
-      // console.log("no elem");
-    // set the new current frame after using the old one
-    currentFrame = frame;
-    if(currentFrameElem)
-      currentFrameElem.className = currentFrameElem.className + " current";
-    // else
-      // console.log("no elem");
+    // currentFrameDisplay.innerText = frame+1;
+    //
+    // var frameElems = frames.querySelectorAll(".frame");
+    // var currentFrameElem = frames.querySelector(".frame.frame-" + frame);
+    // if(frameElems)
+    //   frameElems.map(function (frameElem) {
+    //     frameElem.className = frameElem.className.replace(/(\s+)?current/, "");
+    //   });
+    // // else
+    //   // console.log("no elem");
+    // // set the new current frame after using the old one
+    // currentFrame = frame;
+    // if(currentFrameElem)
+    //   currentFrameElem.className = currentFrameElem.className + " current";
+    // // else
+    //   // console.log("no elem");
+    this.refs.canvasContainer.setCurrentFrame(frame);
   },
   storeImageData() {
     var ctx = canvas.getContext("2d");
@@ -501,11 +577,6 @@ export default React.createClass({
     } else {
       displayFrame.className = displayFrame.className + " unsaved";
     }
-  },
-  goToFrame(place) {
-    if(!checkUnsavedFrame()) return;
-    openImage(place);
-    setCurrentFrame(place);
   },
   saveFrame() {
     // console.log("saved image");
@@ -744,7 +815,7 @@ export default React.createClass({
     return arr.length - 1 === ind;
   },
   checkUnsavedFrame() {
-    if(unsavedFrame) {
+    if(this.state.unsavedFrame) {
       return confirm("The current frame has not been saved. Are you sure you want to continue?");
     }
     return true;
@@ -754,35 +825,67 @@ export default React.createClass({
   },
 
   componentDidMount() {
-    this.listenerFunctions = {};
     // buttons events
     document.addEventListener("keydown", function (e) {
       // console.log(e);
       switch (e.key.toLowerCase()) {
-        case "e": setTool("eraser"); break;
-        case "q": setTool("pencil"); break;
-        case "c": if(e.ctrlKey) clearCanvas(); break;
-        case "n": newFrame(e.shiftKey); break;
-        case "s": if(e.ctrlKey) { saveFrame(); } else { /*setTool("select")*/ } break;
-        case "[": if(e.ctrlKey) goToFrame(currentFrame-1); break;
-        case "]": if(e.ctrlKey) goToFrame(currentFrame+1); break;
+        case "e": this.setTool("eraser"); break;
+        case "q": this.setTool("pencil"); break;
+        case "c": if(e.ctrlKey) this.refs.canvasContainer.clearCanvas(); break;
+        case "n": this.newFrame(e.shiftKey); break;
+        case "s": if(e.ctrlKey) { this.saveFrame(); } else { /*setTool("select")*/ } break;
+        case "[": if(e.ctrlKey) this.refs.toolsContainer.goToFrame("next"); break;
+        case "]": if(e.ctrlKey) this.refs.toolsContainer.goToFrame("prev"); break;
       }
     });
   },
   render() {
     const {
+      brushTool,
       canvasProperties
     } = this.state;
 
     return (
       <div className="work-area">
-        <ToolsContainer/>
-        <CanvasContainer {...{
-          Object.assign(canvasProperties, {
+        <ToolsContainer ref="toolsContainer" {...{
+          unsavedFrame,
+          brushTool,
+          markUnsavedFrame: this.markUnsavedFrame
+        }}/>
+        <CanvasContainer ref="canvasContainer" {...{
+          unsavedFrame,
+          canvasProperties: Object.assign(canvasProperties, {
             pixelValue: canvasOptions
-          })
+          }),
+          methods: {
+            checkUnsavedFrame: this.checkUnsavedFrame,
+            setTool: this.setTool,
+            clearCanvas: this.clearCanvas,
+            createCanvas: this.createCanvas,
+            markSavedFrame: this.markUnsavedFrame,
+            markUnsavedFrame: this.markUnsavedFrame,
+            setCurrentFrame: this.setCurrentFrame,
+          }
         }}/>
       </div>
     );
   }
 });
+
+function wipeCanvas(canvas) {
+  // get canvas
+  const ctx = canvas.getContext("2d");
+  // console.log("clear", canvas);
+  const prevComp = ctx.globalCompositeOperation;
+
+  // erase
+  ctx.globalCompositeOperation = "destination-out"
+  ctx.fillStyle = "rgba(255,255,255,1)";
+  ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+  // return to original comp
+  ctx.globalCompositeOperation = prevComp;
+}
+
+const container = document.querySelector(".react-app");
+
+render(Root, container);

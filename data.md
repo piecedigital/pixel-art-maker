@@ -1,12 +1,24 @@
-### frame data
+### current frame data
 
-- image
+- imageDataArray
+  - frames
+    - data
+
+```
+imageDataArray [
+  frame [data]
+]
+```
+
+### new frame data
+
+- imageDataArray
   - frames
     - layers
       - data
 
 ```
-image [
+imageDataArray [
   frame [
     layer [data]
   ]
