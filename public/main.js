@@ -72,6 +72,7 @@ function initCanvas(canvas, contextValue, pixel) {
       h
     });
     if(e.button === 0 && e.buttons === 1) {
+      console.log(e.button, e.buttons);
       drawPixel(mouseData);
     }
     drawTool(mouseData);
@@ -477,7 +478,11 @@ function sendImageDataURLs(dataURLs) {
     type: "POST",
     data: JSON.stringify(dataToSend),
     success(data) {
+      data = JSON.parse(data);
       console.log(data);
+      var url = "http://" + location.host + "/get-file/" + data.filename;
+      window["download-link"].href = url;
+      window["download-link"].innerText = url;
     },
     error(data) {
       console.error(data);
@@ -536,3 +541,10 @@ document.addEventListener("keydown", function (e) {
     case "]": if(e.ctrlKey) goToFrame(currentFrame+1); break;
   }
 });
+
+window["download-link"].addEventListener("click", function () {
+  setTimeout(function () {
+    window["download-link"].href= "#";
+    window["download-link"].innerText= "";
+  }, 100);
+})

@@ -7,8 +7,14 @@ var giffy = require("./giffy");
 
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/", function (req, res) {
-  res.sendFile(path.join(__dirname, "index.html"));
+// app.get("/", function (req, res) {
+//   res.sendFile(path.join(__dirname, "index.html"));
+// });
+
+app.get("/get-file/:filename", function (req, res) {
+  var filePath = path.join(__dirname, "images/" + req.params.filename + ".gif");
+  res.sendFile(filePath);
+  removeLocation(filePath);
 });
 
 app.post("/upload", function(req, res, next) {
@@ -101,21 +107,15 @@ function saveFiles(obj, cb) {
             framerate: framerate
           }, function (result) {
             // remove folder
-            var cmd = "rm '" + folderPath + "' -r";
-            console.log(cmd);
-            cp.exec(cmd, function (error, stdout, stderr) {
-              if (error) {
-                console.error("exec error: " + error);
-                return;
-              }
-              console.log("stdout: " + stdout);
-              console.log("stderr: " + stderr);
-            });
+            removeLocation(folderPath);
 
             if(result.success) {
               cb({
                 success: true,
-                message: "Gif created successfully!"
+                message: {
+                  filename: "gif-" + uniqueFolderName,
+                  msg: "Gif created successfully!"
+                }
               });
             } else {
               cb({
@@ -129,6 +129,19 @@ function saveFiles(obj, cb) {
     });
   })
   .catch(e => console.error(e.stack || e));
+}
+
+function removeLocation(path) {
+  var cmd = "rm '" + path + "' -r";
+  console.log(cmd);
+  cp.exec(cmd, function (error, stdout, stderr) {
+    if (error) {
+      console.error("exec error: " + error);
+      return;
+    }
+    console.log("stdout: " + stdout);
+    console.log("stderr: " + stderr);
+  });
 }
 
 app.listen(process.env["PORT"] || 8000, function () {

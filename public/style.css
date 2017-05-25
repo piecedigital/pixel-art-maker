@@ -125,7 +125,7 @@ body {
   content: "";
   position: absolute;
   top: 4px;
-  left: 8px;
+  left: 14px;
   width: 64px;
   height: 64px;
   background-image: url("./transparent.png");
