@@ -42,7 +42,7 @@ var listenerFunctions = {};
 
 function initCanvas(canvas, contextValue, pixel) {
   var //pixel = 32,
-  editorDimensionMultiplier = (16*4) * 10,
+  editorDimensionMultiplier = (8*8) * 10,
   w = editorDimensionMultiplier/*pixel*( (pixel*pixel) / (2) * 10 )*/,
   h = editorDimensionMultiplier/*pixel*( (pixel*pixel) / (2) * 10 )*/;// Math.round( (32 / canvas.offsetWidth) * w);
   // console.log(editorDimensionMultiplier);
@@ -71,8 +71,8 @@ function initCanvas(canvas, contextValue, pixel) {
       w,
       h
     });
+    // console.log(e.button, e.buttons);
     if(e.button === 0 && e.buttons === 1) {
-      console.log(e.button, e.buttons);
       drawPixel(mouseData);
     }
     drawTool(mouseData);
@@ -80,7 +80,13 @@ function initCanvas(canvas, contextValue, pixel) {
   canvas.addEventListener("mousemove", listenerFunctions.mousemove);
 }
 
-var brushTool = "pencil";
+var brushTool = "pencil",
+framesArray = [],
+selectedFrameData = {},
+currentFrame = 0,
+playbackRunning = false,
+playbackInterval = null,
+unsavedFrame = false;
 
 function mouseGridPosition(e,
   {
@@ -111,8 +117,8 @@ function mouseGridPosition(e,
     pixel,
     canvas,
     context: ctx,
-    drawnPixelWidth: w/pixel,
-    drawnPixelHeight: h/pixel,
+    width: w/pixel,
+    height: h/pixel,
   };
   data.centerX = data.left + (data.right / 2);
   data.centerY = data.top + (data.bottom / 2);
@@ -139,31 +145,50 @@ function drawPixel (data) {
       ctx.globalCompositeOperation = "source-over"
       ctx.fillStyle = colorElement.value;
       ctx.fillRect(left, top, right, bottom);
+      selectedFrameData[centerX + "_" + centerY] = {
+        top,
+        right,
+        bottom,
+        left,
+        centerX,
+        centerY,
+        pixel,
+        canvas,
+        context: ctx
+      };
     break;
     case "eraser":
       ctx.globalCompositeOperation = "destination-out"
       ctx.fillStyle = "rgba(255,255,255,1)";
       ctx.fillRect(left, top, right, bottom);
+      delete selectedFrameData[centerX + "_" + centerY];
     break;
   }
 
+  console.log(selectedFrameData);
   markUnsavedFrame(currentFrame);
 }
 
 function drawTool(data) {
   var { canvas, context: ctx } = getCanvasAndContext(false, true);
 
-  clearCanvas(true);
-  drawPixel(Object.assign(data, {
-    canvas,
-    context: ctx
-  }));
+  // clearCanvas(true);
+  // drawPixel(Object.assign(data, {
+  //   canvas,
+  //   context: ctx
+  // }));
+  // console.log(cursor);
+  cursor.style.left = data.centerX - (data.width / 2) + "px";
+  cursor.style.top = data.centerY - (data.height / 2) + "px";
+  cursor.style.width = data.width + "px";
+  cursor.style.height = data.height + "px";
 }
 
 function setTool(toolName) {
   // console.log(toolName);
   brushes.querySelector(".brush-show").className = "brush-show " + toolName;
   brushTool = toolName;
+  cursor.className = toolName;
 }
 
 function clearCanvas(overlay) {
@@ -178,13 +203,13 @@ function clearCanvas(overlay) {
   ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
   // return to original comp
   ctx.globalCompositeOperation = "source-over"
+  // console.trace();
+  selectedFrameData = null;
+  selectedFrameData = {};
 }
-
-var framesArray = [], currentFrame = 0, playbackRunning = false, playbackInterval = null, unsavedFrame = false;
 
 function setCurrentFrame(frame) {
   currentFrameDisplay.innerText = frame+1;
-
 
   var frameElems = frames.querySelectorAll(".frame");
   var currentFrameElem = frames.querySelector(".frame.frame-" + frame);
@@ -204,7 +229,8 @@ function setCurrentFrame(frame) {
 
 function storeImageData() {
   var ctx = canvas.getContext("2d");
-  var data = ctx.getImageData(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+  // var data = ctx.getImageData(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+  var data = selectedFrameData;
   // var place = framesArray.length > 0 ? framesArray.length - 1 : 0;
   framesArray[currentFrame] = data;
   markSavedFrame(currentFrame);
@@ -224,6 +250,7 @@ function markSavedFrame(frame) {
 }
 
 function markUnsavedFrame(frame) {
+  // console.log(console.trace());
   unsavedFrame = true;
   var displayFrame = frames.querySelector(".frame.frame-" + frame);
   if(!displayFrame) return;
@@ -237,7 +264,7 @@ function markUnsavedFrame(frame) {
 
 function openImage(place) {
   var ctx = canvas.getContext("2d");
-  if(framesArray[place]) ctx.putImageData(framesArray[place], 0, 0);
+  if(framesArray[place]) ctx.putImageData(objDataToImageData(framesArray[place]), 0, 0);
 }
 
 function goToFrame(place) {
@@ -528,6 +555,10 @@ function checkDelete() {
   return confirm("Are you sure you want to delete this frame?");
 }
 
+function objDataToImageData(data) {
+  return data;
+}
+
 // buttons events
 document.addEventListener("keydown", function (e) {
   // console.log(e);
@@ -536,7 +567,7 @@ document.addEventListener("keydown", function (e) {
     case "q": setTool("pencil"); break;
     case "c": if(e.ctrlKey) clearCanvas(); break;
     case "n": newFrame(e.shiftKey); break;
-    case "s": saveFrame(); break;
+    case "s": if(!e.ctrlKey) e.shiftKey ? setTool("select") : saveFrame(); break;
     case "[": if(e.ctrlKey) goToFrame(currentFrame-1); break;
     case "]": if(e.ctrlKey) goToFrame(currentFrame+1); break;
   }

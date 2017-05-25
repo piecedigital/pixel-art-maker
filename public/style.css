@@ -1,4 +1,4 @@
-html {
+*, *:before, *:after {
   box-sizing: border-box;
 }
 
@@ -30,27 +30,68 @@ body {
 .canvas-wrap {
   display: inline-block;
   position: relative;
+  /*padding: 2px;*/
   margin: auto;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px black;
 }
 
 #canvas {
   display: block;
   /*width: 20em;*/
-  margin: auto;
-  border: 2px solid black;
+  margin: 0;
   background-image: url("./transparent.png");
   background-size: 96px;
 }
 
 #brushoverlay {
-  display: none;
+  /*display: none;*/
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  background-color: rgba(0, 255, 0, .2);
+  /*background-color: rgba(0, 255, 0, .9);*/
+  transition: 0s all linear;
+}
+
+#cursor {
+  /*display: none;*/
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  /*background-color: rgba(0, 255, 0, .2);*/
+  transition: 0s all linear;
+}
+
+#cursor:after {
+  /*display: none;*/
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /*background-color: rgba(255, 0, 0, .2);*/
+  transition: 0s all linear;
+}
+
+#cursor.pencil:after {
+  border: 2px outset black;
+}
+
+#cursor.eraser:after {
+  border: 2px dashed black;
+}
+
+#cursor.select:after {
+  border: 2px dotted black;
 }
 
 .tools {}
@@ -58,21 +99,23 @@ body {
 .brush {
   width: 32px;
   height: 32px;
+  background-size: 24px;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 .brush.pencil {
   background-image: url("./pencil.png");
-  background-size: 24px;
-  background-repeat: no-repeat;
-  background-position: center;
 }
 .brush.eraser {
   background-image: url("./eraser.png");
-  background-size: 24px;
-  background-repeat: no-repeat;
-  background-position: center;
 }
+.brush.select {
+  background-image: url("./select.png");
+}
+
 .brush-show.pencil ~ .brush.pencil,
-.brush-show.eraser ~ .brush.eraser
+.brush-show.eraser ~ .brush.eraser,
+.brush-show.select ~ .brush.select
 {
   box-shadow: 0 0 0 2px rgba(0, 200, 255, 1);
 }
