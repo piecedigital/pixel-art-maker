@@ -1,5 +1,6 @@
 var path = require("path");
 var gm = require("gm");
+var fs = require("fs");
 
 console.log("NODE_ENV", process.env["NODE_ENV"]);
 
@@ -29,20 +30,33 @@ module.exports = function (data, cb) {
 
   var current = makeGif(gm().dispose("previous"), arr);
   // console.log(current);
-  current.write(path.join(__dirname, "images", filename + ".gif"), function (err) {
+  var folderPath = path.join(__dirname, "images");
+  fs.access(folderPath, function (err) {
     if(err) {
-      console.error(err.stack, err);
-      cb({
-        success: false,
-        message: err.message || err
-      });
-    } else {
-      console.log("done");
-      cb({
-        success: true,
-        message: "gif created"
-      });
+      console.error("access err:", err.stack || err);
+      // cb({
+      //   success: false,
+      //   message: "Error creating image"
+      // });
+      fs.mkdirSync(folderPath);
     }
+
+    // write image to public folder
+    current.write(path.join(folderPath, filename + ".gif"), function (err) {
+      if(err) {
+        console.error(err.stack, err);
+        cb({
+          success: false,
+          message: err.message || err
+        });
+      } else {
+        console.log("done");
+        cb({
+          success: true,
+          message: "gif created"
+        });
+      }
+    });
   });
 }
 function appendImages(gm, arr) {
