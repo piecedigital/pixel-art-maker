@@ -2,6 +2,16 @@ import React from "react";
 import { render } from "react-dom";
 
 this.listenerFunctions = {};
+removeListeners(canvas) {
+  try {
+    // console.log("removing listeners");
+    Object.keys(listenerFunctions).map(function(funcName) {
+      canvas.removeEventListener(funcName, listenerFunctions[funcName]);
+    });
+  } catch (e) {
+    console.error(e);
+  }
+},
 
 const SelectOption = React.createClass({
   render() {
@@ -57,12 +67,12 @@ const Canvas = React.createClass({
 const CanvasContainer = React.createClass({
   getInitialState() {
     return {
+      frameBeforePlayback: 0,
+      frame: 0,
       imageObjectData: []
     }
   },
   initCanvas(canvas, contextValue, pixel) {
-    const ( canvasProperties ) = this.props;
-
     var //pixel = 32,
     editorDimensionMultiplier = (16*4) * 10,
     w = editorDimensionMultiplier/*pixel*( (pixel*pixel) / (2) * 10 )*/,
@@ -70,6 +80,15 @@ const CanvasContainer = React.createClass({
     // console.log(editorDimensionMultiplier);
     if(Object.prototype.toString.call(canvas) !== "[object HTMLCanvasElement]") return;// console.error("1st argument needs to be an HTML canvas element");
     if(typeof contextValue !== "string") return;// console.error("2nd argument needs to be a string denoting a 2d or 3d context of the canvas");
+
+    removeListeners(this.refs.brushoverlay);
+    this.setState({
+      frame: 0,
+      canvasProperties: Object.assign(this.state.canvasProperties, {
+        width: w,
+        height: h
+      })
+    })
 
     // var canvas = makeCanvas(false, w,h), brushoverlay = makeCanvas(true, w,h);
     // var ctx = canvas.getContext(contextValue);
@@ -190,13 +209,90 @@ const CanvasContainer = React.createClass({
       frame: place
     })
   },
-
-  componentDidMount() {
+  storeImageData() {
+    // var ctx = canvas.getContext("2d");
+    // var data = ctx.getImageData(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+    // // var place = framesArray.length > 0 ? framesArray.length - 1 : 0;
+    // framesArray[currentFrame] = data;
+    // markSavedFrame(currentFrame);
+    // updateDisplayFrame(currentFrame);
     const {
-      canvasProperties,
+      imageObjectData,
+      frame,
+      canvasProperties: {
+        width,
+        height
+      }
+    } = this.state;
+    var data = this.refs[`layer${this.state.frame}`].canvas.getImageData(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+    imageObjectData[frame] = data;
+    this.setState({
+      imageObjectData
+    })
+  },
+  manipFrames(action) {
+    const imageObjectData = this.state.imageObjectData;
+    switch (action) {
+      case "next":
+      imageObjectData.push(void(0));
+        this.setState({
+          imageObjectData
+        });
+      break;
+      case "insert":
+        imageObjectData.splice(this.state.frame, 0, void(0));
+        this.setState({
+          imageObjectData
+        });
+      break;
+      case "remove":
+        imageObjectData.splice(this.state.frame, 1;
+        this.setState({
+          imageObjectData
+        });
+      break;
+    }
+  },
+  playbackFrames() {
+    const {
+      playbackRunning,
+      methods: {
+        enableOrDisableTools
+      }
     } = this.props;
 
-    this.initCanvas(this.refs.brushoverlay, canvasProperties.contextValue, canvasProperties.pixelValue);
+    if(playbackRunning) return;
+    this.setState({
+      frameBeforePlayback: this.state.frame
+    })
+    // playbackRunning = true;
+    // enableOrDisableTools("playback", "disable");
+    var f = 0;
+    // console.log(parseInt(framerate.value));
+    var tick = function() {
+      setTimeout(function() {
+        if(!playbackRunning) return;
+        openImage(f);
+        f++; if(f >= framesArray.length) f = 0;
+        if(playbackRunning) return tick();
+        // if not playbackRunning
+        this.setState({
+          frame: this.state.frameBeforePlayback
+        })
+      }, 1000/parseInt(framerate.value));
+    }
+    tick();
+  },
+  stopPlayback() {
+    this.
+  }
+
+  componentDidMount() {
+    // const {
+    //   canvasProperties,
+    // } = this.state;
+    //
+    // this.initCanvas(this.refs.brushoverlay, canvasProperties.contextValue, canvasProperties.pixelValue);
   },
   render() {
     const {
@@ -364,7 +460,7 @@ const Root = React.createClass({
     }
     return ({
       brushTool: "pencil",
-      currentFrame: 0,
+      // currentFrame: 0,
       playbackRunning: false,
       playbackInterval: null,
       unsavedFrame: false,
@@ -509,6 +605,80 @@ const Root = React.createClass({
   //   openImage(place);
   //   setCurrentFrame(place);
   // },
+  // editFrames(place, action) {
+  //   var number = action === "remove" ? -1 : 1;
+  //   if(action === "remove") {
+  //
+  //     // remove display frame
+  //     var frameElem = frames.querySelector(".frame.frame-" + place);
+  //     // console.log("removing", place, frameElem);
+  //     frames.removeChild(frameElem);
+  //   }
+  //   if(action === "insert") {
+  //     insertDisplayFrame(place+1);
+  //   }
+  //   // change class and dataset of the frames ahead
+  //   for(var i = place+1; i < framesArray.length+(action === "remove" ? 1 : -1); i++) {
+  //     var elem = frames.querySelectorAll(".frame.frame-" + i).slice(-1)[0];
+  //     // console.log("changing", i, elem, ".frame.frame-" + i);
+  //     elem.className = elem.className.replace(/frame\-[0-9]+/, "frame-" + (i+number));
+  //     elem.dataset.frame = (i+number);
+  //   }
+  //
+  //
+  //   if(currentFrame > place) currentFrame += number;
+  //   setCurrentFrame(currentFrame);
+  //
+  //   if(framesArray.length < 1) addDisplayFrame(0);
+  // },
+  // createDisplayFrame(place) {
+  //   var frame = document.createElement("div");
+  //   frame.className = "frame frame-" + place;
+  //   frame.dataset.frame = place;
+  //   frame.addEventListener("click", function (e) {
+  //     var place = parseInt(frame.dataset.frame);
+  //     // check if they're okay with leaving the frame with unsaved data
+  //
+  //     if(!checkUnsavedFrame()) return;
+  //     // console.log(place);
+  //     try {
+  //       markSavedFrame(currentFrame);
+  //       openImage(place);
+  //     } catch (e) {
+  //       // console.error(e);
+  //     }
+  //     setCurrentFrame(place);
+  //   });
+  //   return frame;
+  // },
+  // addDisplayFrame(place) {
+  //   var frame = createDisplayFrame(place);
+  //   frames.appendChild(frame)
+  // },
+  // insertDisplayFrame(place) {
+  //   place = parseInt(place);
+  //   var frame = createDisplayFrame(place);
+  //   var nextFrame = frames.querySelector(".frame.frame-" + (place))
+  //   // console.log("action insert", place, nextFrame);
+  //   frames.insertBefore(frame, nextFrame);
+  // },
+  // updateDisplayFrame(place) {
+  //   var image;
+  //   if(framesArray[place]) {
+  //     image = document.createElement("img");
+  //     image.src = getImageDataURL(framesArray[place]);
+  //   }
+  //
+  //   var frame = document.querySelector(".frame.frame-" + place);
+  //   frame.innerHTML = "";
+  //   if(image) frame.appendChild(image);
+  // },
+  // resetFrames() {
+  //   // framesArray = [];
+  //   // currentFrame = 0;
+  //   // frames.innerHTML = "";
+  //   this.refs.canvasContainer.manipFrames("reset");
+  // },
   setTool(toolName) {
     // console.log(toolName);
     this.setState({
@@ -549,34 +719,42 @@ const Root = React.createClass({
     this.refs.canvasContainer.setCurrentFrame(frame);
   },
   storeImageData() {
-    var ctx = canvas.getContext("2d");
-    var data = ctx.getImageData(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-    // var place = framesArray.length > 0 ? framesArray.length - 1 : 0;
-    framesArray[currentFrame] = data;
-    markSavedFrame(currentFrame);
-    updateDisplayFrame(currentFrame);
+    // var ctx = canvas.getContext("2d");
+    // var data = ctx.getImageData(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+    // // var place = framesArray.length > 0 ? framesArray.length - 1 : 0;
+    // framesArray[currentFrame] = data;
+    // markSavedFrame(currentFrame);
+    // updateDisplayFrame(currentFrame);
+    this.refs.canvasContainer.storeImageData();
+    this.markSavedFrame();
   },
   markSavedFrame(frame) {
-    unsavedFrame = false;
-    var displayFrame = frames.querySelector(".frame.frame-" + frame);
-    if(!displayFrame) return;
-    if( displayFrame.className.match("saved") && !displayFrame.className.match("unsaved") ) return
-    if( displayFrame.className.match("unsaved") ) {
-      displayFrame.className = displayFrame.className.replace("unsaved", "saved");
-    } else {
-      displayFrame.className = displayFrame.className + " saved";
-    }
+    // unsavedFrame = false;
+    // var displayFrame = frames.querySelector(".frame.frame-" + frame);
+    // if(!displayFrame) return;
+    // if( displayFrame.className.match("saved") && !displayFrame.className.match("unsaved") ) return
+    // if( displayFrame.className.match("unsaved") ) {
+    //   displayFrame.className = displayFrame.className.replace("unsaved", "saved");
+    // } else {
+    //   displayFrame.className = displayFrame.className + " saved";
+    // }
+    this.setState({
+      unsavedFrame: false
+    })
   },
   markUnsavedFrame(frame) {
-    unsavedFrame = true;
-    var displayFrame = frames.querySelector(".frame.frame-" + frame);
-    if(!displayFrame) return;
-    if( displayFrame.className.match("unsaved") ) return
-    if( displayFrame.className.match("saved") ) {
-      displayFrame.className = displayFrame.className.replace("saved", "unsaved");
-    } else {
-      displayFrame.className = displayFrame.className + " unsaved";
-    }
+    // unsavedFrame = true;
+    // var displayFrame = frames.querySelector(".frame.frame-" + frame);
+    // if(!displayFrame) return;
+    // if( displayFrame.className.match("unsaved") ) return
+    // if( displayFrame.className.match("saved") ) {
+    //   displayFrame.className = displayFrame.className.replace("saved", "unsaved");
+    // } else {
+    //   displayFrame.className = displayFrame.className + " unsaved";
+    // }
+    this.setState({
+      unsavedFrame: true
+    })
   },
   saveFrame() {
     // console.log("saved image");
@@ -585,137 +763,70 @@ const Root = React.createClass({
   newFrame(emptyCanvas) {
     // console.log("next image", emptyCanvas);
     storeImageData();
-    if(framesArray[framesArray.length-1]) {
-      framesArray.push(void(0));
-      addDisplayFrame(framesArray.length-1);
-    }
-    currentFrame = framesArray.length - 1;
-    openImage(currentFrame - 1);
-    setCurrentFrame(currentFrame);
-    if(emptyCanvas) clearCanvas();
+    this.refs.canvasContainer.manipFrames("next");
+    // if(framesArray[framesArray.length-1]) {
+    //   framesArray.push(void(0));
+    //   addDisplayFrame(framesArray.length-1);
+    // }
+    // currentFrame = framesArray.length - 1;
+    // openImage(currentFrame - 1);
+    // setCurrentFrame(currentFrame);
+    // if(emptyCanvas) clearCanvas();
     // console.log(currentFrame, framesArray.length);
+  },
+  insertFrame(place) {
+    // framesArray.splice(place+1, 0, null)
+    // editFrames(place, "insert");
+    this.refs.canvasContainer.manipFrames("insert");
   },
   removeFrame(place) {
     // removed image data from framesArray
-    framesArray.splice(place, 1);
-    editFrames(place, "remove");
-  },
-  insertFrame(place) {
-    framesArray.splice(place+1, 0, null)
-    editFrames(place, "insert");
-  },
-  editFrames(place, action) {
-    var number = action === "remove" ? -1 : 1;
-    if(action === "remove") {
-
-      // remove display frame
-      var frameElem = frames.querySelector(".frame.frame-" + place);
-      // console.log("removing", place, frameElem);
-      frames.removeChild(frameElem);
-    }
-    if(action === "insert") {
-      insertDisplayFrame(place+1);
-    }
-    // change class and dataset of the frames ahead
-    for(var i = place+1; i < framesArray.length+(action === "remove" ? 1 : -1); i++) {
-      var elem = frames.querySelectorAll(".frame.frame-" + i).slice(-1)[0];
-      // console.log("changing", i, elem, ".frame.frame-" + i);
-      elem.className = elem.className.replace(/frame\-[0-9]+/, "frame-" + (i+number));
-      elem.dataset.frame = (i+number);
-    }
-
-
-    if(currentFrame > place) currentFrame += number;
-    setCurrentFrame(currentFrame);
-
-    if(framesArray.length < 1) addDisplayFrame(0);
-  },
-  createDisplayFrame(place) {
-    var frame = document.createElement("div");
-    frame.className = "frame frame-" + place;
-    frame.dataset.frame = place;
-    frame.addEventListener("click", function (e) {
-      var place = parseInt(frame.dataset.frame);
-      // check if they're okay with leaving the frame with unsaved data
-
-      if(!checkUnsavedFrame()) return;
-      // console.log(place);
-      try {
-        markSavedFrame(currentFrame);
-        openImage(place);
-      } catch (e) {
-        // console.error(e);
-      }
-      setCurrentFrame(place);
-    });
-    return frame;
-  },
-  addDisplayFrame(place) {
-    var frame = createDisplayFrame(place);
-    frames.appendChild(frame)
-  },
-  insertDisplayFrame(place) {
-    place = parseInt(place);
-    var frame = createDisplayFrame(place);
-    var nextFrame = frames.querySelector(".frame.frame-" + (place))
-    // console.log("action insert", place, nextFrame);
-    frames.insertBefore(frame, nextFrame);
-  },
-  updateDisplayFrame(place) {
-    var image;
-    if(framesArray[place]) {
-      image = document.createElement("img");
-      image.src = getImageDataURL(framesArray[place]);
-    }
-
-    var frame = document.querySelector(".frame.frame-" + place);
-    frame.innerHTML = "";
-    if(image) frame.appendChild(image);
+    // framesArray.splice(place, 1);
+    // editFrames(place, "remove");
+    this.refs.canvasContainer.manipFrames("remove");
   },
   remove(place) {
-    place = parseInt(place) || currentFrame;
+    // place = parseInt(place) || currentFrame;
     // if(!framesArray[place]) return alert("This frame has no saved data");
     removeFrame(place);
-    if(currentFrame === place) openImage(place);
+    // if(currentFrame === place) openImage(place);
   },
   insert(place) {
-    place = parseInt(place) || currentFrame;
+    // place = parseInt(place) || currentFrame;
     insertFrame(place);
   },
-  removeListeners() {
-    // console.log("removing listeners");
-    Object.keys(listenerFunctions).map(function(funcName) {
-      canvas.removeEventListener(funcName, listenerFunctions[funcName]);
-    });
-  },
-  resetFrames() {
-    framesArray = [];
-    currentFrame = 0;
-    frames.innerHTML = "";
-  },
   playbackFrames() {
-    if(playbackRunning) return;
-    playbackRunning = true;
-    enableOrDisableTools("playback", "disable");
-    var f = 0;
-    // console.log(parseInt(framerate.value));
-    var tick = function() {
-      setTimeout(function() {
-        if(!playbackRunning) return;
-        openImage(f);
-        f++; if(f >= framesArray.length) f = 0;
-        if(playbackRunning) tick();
-      }, 1000/parseInt(framerate.value));
-    }
-    tick();
+    // if(playbackRunning) return;
+    // playbackRunning = true;
+    // enableOrDisableTools("playback", "disable");
+    // var f = 0;
+    // // console.log(parseInt(framerate.value));
+    // var tick = function() {
+    //   setTimeout(function() {
+    //     if(!playbackRunning) return;
+    //     openImage(f);
+    //     f++; if(f >= framesArray.length) f = 0;
+    //     if(playbackRunning) tick();
+    //   }, 1000/parseInt(framerate.value));
+    // }
+    // tick();
+    this.setState({
+      playbackRunning: true
+    })
+    this.refs.canvasContainer.playbackFrames();
   },
   stopPlayback() {
-    if(!playbackRunning) return;
-    playbackRunning = false;
-    // clearInterval(playbackInterval);
-    openImage(currentFrame);
-    enableOrDisableTools("playback", "enable");
+    // if(!playbackRunning) return;
+    // playbackRunning = false;
+    // // clearInterval(playbackInterval);
+    // openImage(currentFrame);
+    // enableOrDisableTools("playback", "enable");
+    // this.refs.canvasContainer.stopPlayback();
+    this.setState({
+      playbackRunning: false
+    })
   },
+
   enableOrDisableTools(whichTools, action) {
     var firstOpt = action === "disable" ? true : false;
     switch (whichTools) {
@@ -734,11 +845,11 @@ const Root = React.createClass({
   },
   createCanvas() {
     // console.log(parseInt(pixelByPixel.value));
-    removeListeners();
-    resetFrames();
-    addDisplayFrame(0);
-    setCurrentFrame(0);
-    initCanvas(canvas, "2d", parseInt(pixelByPixel.value));
+    // removeListeners();
+    // resetFrames();
+    // addDisplayFrame(0);
+    // setCurrentFrame(0);
+    this.refs.canvasContainer.initCanvas(canvas, "2d", parseInt(pixelByPixel.value));
   },
   getCanvasAndContext(isNew, overlay) {
     // isNew - if true, returns a new canvas
@@ -841,19 +952,17 @@ const Root = React.createClass({
   },
   render() {
     const {
-      brushTool,
       canvasProperties
     } = this.state;
 
     return (
       <div className="work-area">
-        <ToolsContainer ref="toolsContainer" {...{
-          unsavedFrame,
-          brushTool,
-          markUnsavedFrame: this.markUnsavedFrame
-        }}/>
-        <CanvasContainer ref="canvasContainer" {...{
-          unsavedFrame,
+        <ToolsContainer ref="toolsContainer" {...Object.assign(this.state, {
+          methods: {
+            markUnsavedFrame: this.markUnsavedFrame
+          }
+        })}/>
+        <CanvasContainer ref="canvasContainer" {...Object.assign(this.state, {
           canvasProperties: Object.assign(canvasProperties, {
             pixelValue: canvasOptions
           }),
@@ -866,7 +975,7 @@ const Root = React.createClass({
             markUnsavedFrame: this.markUnsavedFrame,
             setCurrentFrame: this.setCurrentFrame,
           }
-        }}/>
+        })}/>
       </div>
     );
   }

@@ -6,7 +6,7 @@
 
 ```
 imageDataArray [
-  frame [data]
+  frame (data)
 ]
 ```
 
@@ -20,7 +20,7 @@ imageDataArray [
 ```
 imageDataArray [
   frame [
-    layer [data]
+    layer (data)
   ]
 ]
 ```
