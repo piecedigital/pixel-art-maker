@@ -3,7 +3,7 @@ var gm = require("gm");
 
 console.log("NODE_ENV", process.env["NODE_ENV"]);
 
-if(process.env["NODE_ENV"] === "prod") gm = gm.subClass({ imageMagick: true });
+if(process.env["NODE_ENV"] === "production") gm = gm.subClass({ imageMagick: true });
 
 // console.log(gm().__proto__);
 module.exports = function (data, cb) {
