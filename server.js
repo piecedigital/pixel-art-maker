@@ -131,7 +131,7 @@ function saveFiles(obj, cb) {
   .catch(e => console.error(e.stack || e));
 }
 
-app.listen(8000, function () {
+app.listen(process.env["PORT"] || 8000, function () {
   console.log("now listening on port 8000");
 });
 
