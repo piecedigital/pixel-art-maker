@@ -29,8 +29,8 @@ var makeCanvas = function (overlay, w, h, ratio, newCanvas) {
   var thisCanvas = newCanvas ? document.createElement("canvas") : (overlay ? brushoverlay : canvas);
   thisCanvas.width = w * ratio;
   thisCanvas.height = h * ratio;
-  // thisCanvas.style.width = w + "px";
-  // thisCanvas.style.height = h + "px";
+  thisCanvas.style.width = w * ratio + "px";
+  thisCanvas.style.height = h * ratio + "px";
   thisCanvas.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
   return thisCanvas;
 }
@@ -38,7 +38,15 @@ var makeCanvas = function (overlay, w, h, ratio, newCanvas) {
 
 var colorElement = document.querySelector(".color");
 
-var listenerFunctions = {};
+// variables
+var listenerFunctions = {},
+  brushTool = "pencil",
+  framesArray = [],
+  selectedFrameData = {},
+  currentFrame = 0,
+  playbackRunning = false,
+  playbackInterval = null,
+  unsavedFrame = false;
 
 function initCanvas(canvas, contextValue, pixel) {
   var //pixel = 32,
@@ -51,6 +59,20 @@ function initCanvas(canvas, contextValue, pixel) {
 
   var canvas = makeCanvas(false, w,h), brushoverlay = makeCanvas(true, w,h);
   var ctx = canvas.getContext(contextValue);
+
+  // set the default values for the cursor so it starts neat
+  drawTool(
+    mouseGridPosition({
+      offsetX: w/2,
+      offsetY: h/2
+    }, {
+      pixel,
+      canvas,
+      ctx,
+      w,
+      h
+    })
+  );
 
   listenerFunctions.click = function (e) {
     drawPixel(mouseGridPosition(e, {
@@ -79,14 +101,6 @@ function initCanvas(canvas, contextValue, pixel) {
   };
   canvas.addEventListener("mousemove", listenerFunctions.mousemove);
 }
-
-var brushTool = "pencil",
-framesArray = [],
-selectedFrameData = {},
-currentFrame = 0,
-playbackRunning = false,
-playbackInterval = null,
-unsavedFrame = false;
 
 function mouseGridPosition(e,
   {
@@ -126,7 +140,7 @@ function mouseGridPosition(e,
   return data;
 }
 
-function drawPixel (data) {
+function drawPixel (data, dontChangeData) {
   var {
     left,
     top,
@@ -145,7 +159,7 @@ function drawPixel (data) {
       ctx.globalCompositeOperation = "source-over"
       ctx.fillStyle = colorElement.value;
       ctx.fillRect(left, top, right, bottom);
-      selectedFrameData[centerX + "_" + centerY] = {
+      if(!dontChangeData) selectedFrameData[centerX + "_" + centerY] = {
         top,
         right,
         bottom,
@@ -161,17 +175,16 @@ function drawPixel (data) {
       ctx.globalCompositeOperation = "destination-out"
       ctx.fillStyle = "rgba(255,255,255,1)";
       ctx.fillRect(left, top, right, bottom);
-      delete selectedFrameData[centerX + "_" + centerY];
+      if(!dontChangeData) delete selectedFrameData[centerX + "_" + centerY];
     break;
   }
 
-  console.log(selectedFrameData);
-  markUnsavedFrame(currentFrame);
+  // console.log(selectedFrameData);
+  if(!dontChangeData) markUnsavedFrame(currentFrame);
 }
 
 function drawTool(data) {
-  var { canvas, context: ctx } = getCanvasAndContext(false, true);
-
+  // var { canvas, context: ctx } = getCanvasAndContext(false, true);
   // clearCanvas(true);
   // drawPixel(Object.assign(data, {
   //   canvas,
@@ -238,15 +251,19 @@ function storeImageData() {
 }
 
 function markSavedFrame(frame) {
+  console.log(frame);
   unsavedFrame = false;
   var displayFrame = frames.querySelector(".frame.frame-" + frame);
   if(!displayFrame) return;
-  if( displayFrame.className.match("saved") && !displayFrame.className.match("unsaved") ) return
-  if( displayFrame.className.match("unsaved") ) {
-    displayFrame.className = displayFrame.className.replace("unsaved", "saved");
-  } else {
-    displayFrame.className = displayFrame.className + " saved";
-  }
+  // if( displayFrame.className.match("saved") && !displayFrame.className.match("unsaved") ) return
+  // console.log(displayFrame);
+  // if( displayFrame.className.match("unsaved") ) {
+  //   displayFrame.className = displayFrame.className.replace("unsaved", "saved");
+  // } else {
+  //   displayFrame.className = displayFrame.className + " saved";
+  // }
+  displayFrame.removeClass("unsaved");
+  displayFrame.addClass("saved");
 }
 
 function markUnsavedFrame(frame) {
@@ -254,12 +271,14 @@ function markUnsavedFrame(frame) {
   unsavedFrame = true;
   var displayFrame = frames.querySelector(".frame.frame-" + frame);
   if(!displayFrame) return;
-  if( displayFrame.className.match("unsaved") ) return
-  if( displayFrame.className.match("saved") ) {
-    displayFrame.className = displayFrame.className.replace("saved", "unsaved");
-  } else {
-    displayFrame.className = displayFrame.className + " unsaved";
-  }
+  // if( displayFrame.className.match("unsaved") ) return
+  // if( displayFrame.className.match("saved") ) {
+  //   displayFrame.className = displayFrame.className.replace("saved", "unsaved");
+  // } else {
+  //   displayFrame.className = displayFrame.className + " unsaved";
+  // }
+  displayFrame.removeClass("saved");
+  displayFrame.addClass("unsaved");
 }
 
 function openImage(place) {
@@ -306,7 +325,6 @@ function insertFrame(place) {
 function editFrames(place, action) {
   var number = action === "remove" ? -1 : 1;
   if(action === "remove") {
-
     // remove display frame
     var frameElem = frames.querySelector(".frame.frame-" + place);
     // console.log("removing", place, frameElem);
@@ -368,7 +386,7 @@ function updateDisplayFrame(place) {
   var image;
   if(framesArray[place]) {
     image = document.createElement("img");
-    image.src = getImageDataURL(framesArray[place]);
+    image.src = getImageDataURL(objDataToImageData(framesArray[place]));
   }
 
   var frame = document.querySelector(".frame.frame-" + place);
@@ -481,7 +499,7 @@ function submitImages() {
   framesArray.map(function (imageData, ind) {
     if(!imageData) return;
     // console.log("working on saving images");
-    var parsedDataURL = parseImageDataURL(getImageDataURL(imageData));
+    var parsedDataURL = parseImageDataURL(getImageDataURL(objDataToImageData(imageData)));
     imageDataURLs.push(parsedDataURL);
     // getImageBlob(function (blob) {
     //   imageBlobs.push(blob);
@@ -556,7 +574,21 @@ function checkDelete() {
 }
 
 function objDataToImageData(data) {
-  return data;
+  var CnC = getCanvasAndContext(true);
+  var { canvas, context: ctx } = CnC;
+  canvas.className = "test";
+  Object.keys(data).map(function (key) {
+    var pixelData = data[key];
+
+    drawPixel(Object.assign(pixelData, CnC), true);
+  })
+
+  // console.log("blah");
+  // console.log(canvas, ctx);
+  // console.log(canvas.toDataURL("image/png"));
+  var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  // console.log(imageData);
+  return imageData;
 }
 
 // buttons events
@@ -579,3 +611,69 @@ window["download-link"].addEventListener("click", function () {
     window["download-link"].innerText= "";
   }, 100);
 })
+
+HTMLElement.prototype.hasClass = function(stringOrArray) {
+  if(!this.className) return false;
+
+  var proceed = function(type) {
+    var yes = false;
+
+    switch (type) {
+      case "Array": yes = stringOrArray.map(check) || yes; break;
+      case "String": yes = check(stringOrArray); break;
+    }
+    return yes;
+  }
+
+  var check = function(text) {
+    return this.className.split(" ").indexOf(text) >= 0;
+  }.bind(this);
+
+  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
+  switch (type) {
+    case "String":
+    case "Array":
+      return proceed(type);
+    break;
+  }
+}
+
+HTMLElement.prototype.addClass = function(stringOrArray) {
+  var proceed = function(type) {
+    switch (type) {
+      case "Array": stringOrArray.map(add).join(" "); break;
+      case "String": add(stringOrArray); break;
+    }
+  }
+
+  var add = function(text) {
+    var arr = this.className ? this.className.split(" ") : [];
+    if(arr.indexOf(text) !== -1) return;
+    arr.push(text);
+    var joined = arr.join(" ");
+    this.className = joined;
+  }.bind(this);
+
+  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
+  proceed(type);
+}
+
+HTMLElement.prototype.removeClass = function(stringOrArray) {
+  var proceed = function(type) {
+    switch (type) {
+      case "Array": stringOrArray.map(remove).join(" "); break;
+      case "String": remove(stringOrArray); break;
+    }
+  }
+
+  var remove = function(text) {
+    var arr = this.className ? this.className.split(" ") : [];
+    var place = arr.indexOf(text);
+    if(place < 0) return this.className;
+    arr.splice(place, 1);
+    this.className = arr.join(" ");
+  }.bind(this);
+
+  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
+  proceed(type);
+}

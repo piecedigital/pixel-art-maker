@@ -148,7 +148,7 @@ body {
   content: "";
   z-index: 1;
   position: absolute;
-  top: -2px;
+  top: -4px;
   left: 50%;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
@@ -168,7 +168,7 @@ body {
   content: "";
   position: absolute;
   top: 4px;
-  left: 14px;
+  left: 10px;
   width: 64px;
   height: 64px;
   background-image: url("./transparent.png");
@@ -188,4 +188,9 @@ button, select, input {
   border: 1px solid black;
   border-radius: 8px;
   background-color: white;
+}
+
+input.color {
+  width: 50px;
+  height: 50px;
 }
