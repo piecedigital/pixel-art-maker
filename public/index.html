@@ -42,9 +42,15 @@
             <button type="button" name="button" onclick="newFrame()">New Frame</button>
             <button type="button" name="button" onclick="newFrame(true)">New Empty Frame</button>
           </div>
+          <div class="divider"></div>
           <div class="">
             <button type="button" name="button" onclick="remove()">Remove Current Frame</button>
             <button type="button" name="button" onclick="insert()">Insert After Current Frame</button>
+          </div>
+          <div class="divider"></div>
+          <div class="">
+            <button type="button" name="button" onclick="newLayer()">Add New Layer</button>
+            <select class="current-layer" name=""></select>
           </div>
         </div>
         <div class="tools">
@@ -95,7 +101,8 @@
           <div class="frame"></div>
         </div>
         <span class="canvas-wrap">
-          <canvas id="canvas" width="0" height="0"></canvas>
+          <span class="canvas-layers"></span>
+          <span class="canvas-layers-tab"></span>
           <canvas id="brushoverlay" width="0" height="0"></canvas>
           <div id="cursor" class="pencil" width="0" height="0"></div>
         </span>

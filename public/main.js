@@ -10,6 +10,20 @@ var frames = workArea.getElementsByClassName("frames")[0];
 var pixelByPixel = tools.getElementsByClassName("pixel-by-pixel")[0];
 var currentFrameDisplay = tools.getElementsByClassName("current-frame")[0];
 var framerate = tools.getElementsByClassName("framerate")[0];
+var canvasLayers = workArea.querySelector(".canvas-layers");
+// var canvasLayersTabs = workArea.querySelector(".canvas-layers-tabs");
+var currentLayer = workArea.querySelector(".current-layer");
+
+// variables
+var listenerFunctions = {},
+  brushTool = "pencil",
+  framesArray = [],
+  selectedFrameData = {},
+  currentFrame = 0,
+  layerCount = 0,
+  playbackRunning = false,
+  playbackInterval = null,
+  unsavedFrame = false;
 
 // http://stackoverflow.com/a/15666143/4107851
 var PIXEL_RATIO = (function () {
@@ -23,10 +37,19 @@ var PIXEL_RATIO = (function () {
 
   return dpr / bsr;
 })();
+/* <canvas id="canvas" class="canvas" width="0" height="0"></canvas> */
 
-var makeCanvas = function (overlay, w, h, ratio, newCanvas) {
-  var ratio = ratio || PIXEL_RATIO;
-  var thisCanvas = newCanvas ? document.createElement("canvas") : (overlay ? brushoverlay : canvas);
+var makeCanvas = function (overlay, w, h, layer, newCanvas) {
+  var ratio = PIXEL_RATIO;
+  var thisCanvas;
+  if(newCanvas) {
+    var c = document.createElement("canvas");
+    c.className = "canvas";
+    thisCanvas = c;
+  } else {
+    thisCanvas = overlay ? brushoverlay : window["canvas" + layer || canvasLayers];
+  }
+
   thisCanvas.width = w * ratio;
   thisCanvas.height = h * ratio;
   thisCanvas.style.width = w * ratio + "px";
@@ -38,27 +61,17 @@ var makeCanvas = function (overlay, w, h, ratio, newCanvas) {
 
 var colorElement = document.querySelector(".color");
 
-// variables
-var listenerFunctions = {},
-  brushTool = "pencil",
-  framesArray = [],
-  selectedFrameData = {},
-  currentFrame = 0,
-  playbackRunning = false,
-  playbackInterval = null,
-  unsavedFrame = false;
-
-function initCanvas(canvas, contextValue, pixel) {
+function initCanvas(contextValue, pixel) {
   var //pixel = 32,
   editorDimensionMultiplier = (8*8) * 10,
   w = editorDimensionMultiplier/*pixel*( (pixel*pixel) / (2) * 10 )*/,
   h = editorDimensionMultiplier/*pixel*( (pixel*pixel) / (2) * 10 )*/;// Math.round( (32 / canvas.offsetWidth) * w);
   // console.log(editorDimensionMultiplier);
-  if(Object.prototype.toString.call(canvas) !== "[object HTMLCanvasElement]") return;// console.error("1st argument needs to be an HTML canvas element");
+  // if(Object.prototype.toString.call(canvas) !== "[object HTMLCanvasElement]") return;// console.error("1st argument needs to be an HTML canvas element");
   if(typeof contextValue !== "string") return;// console.error("2nd argument needs to be a string denoting a 2d or 3d context of the canvas");
 
-  var canvas = makeCanvas(false, w,h), brushoverlay = makeCanvas(true, w,h);
-  var ctx = canvas.getContext(contextValue);
+  var brushoverlay = makeCanvas(true, w, h);
+  newLayer();
 
   // set the default values for the cursor so it starts neat
   drawTool(
@@ -67,8 +80,6 @@ function initCanvas(canvas, contextValue, pixel) {
       offsetY: h/2
     }, {
       pixel,
-      canvas,
-      ctx,
       w,
       h
     })
@@ -77,19 +88,15 @@ function initCanvas(canvas, contextValue, pixel) {
   listenerFunctions.click = function (e) {
     drawPixel(mouseGridPosition(e, {
       pixel,
-      canvas,
-      ctx,
       w,
       h
     }))
   };
-  canvas.addEventListener("click", listenerFunctions.click);
+  brushoverlay.addEventListener("click", listenerFunctions.click);
 
   listenerFunctions.mousemove = function(e) {
     var mouseData = mouseGridPosition(e, {
       pixel,
-      canvas,
-      ctx,
       w,
       h
     });
@@ -99,24 +106,47 @@ function initCanvas(canvas, contextValue, pixel) {
     }
     drawTool(mouseData);
   };
-  canvas.addEventListener("mousemove", listenerFunctions.mousemove);
+  brushoverlay.addEventListener("mousemove", listenerFunctions.mousemove);
+}
+
+function appendNewCanvasLayer(w, h) {
+  var c = makeCanvas(false, w, h, null, true);
+  // var length = document.querySelectorAll(".canvas").length;
+  // c.id = "canvas" + length;
+  c.id = "canvas" + (layerCount - 1);
+  canvasLayers.appendChild(c);
+  return c;
+}
+
+function appendNewLayerOption() {
+  var opt = document.createElement("option");
+  var value = document.querySelectorAll(".canvas").length;
+  opt.value = value;
+  opt.innerText = value+1;
+  currentLayer.appendChild(opt);
+}
+
+function newLayer() {
+  layerCount++;
+  appendNewLayerOption();
+  appendNewCanvasLayer(brushoverlay.width, brushoverlay.height);
 }
 
 function mouseGridPosition(e,
   {
     pixel,
-    canvas,
-    ctx,
+    // canvas,
+    // ctx,
     w,
     h
   }) {
-  if(!canvas) ({ canvas, context: ctx } = getCanvasAndContext());
+  var { canvas, context: ctx } = getCanvasAndContext();
   // console.log("click", e);
   var mX = e.offsetX;
   var mY = e.offsetY;
   // console.log( Math.round( (mX / canvas.offsetWidth) * pixel) );
-  var pixelPlaceW = Math.floor( (mX / canvas.offsetWidth) * pixel);
-  var pixelPlaceH = Math.floor( (mY / canvas.offsetHeight) * pixel);
+  var pixelPlaceW = Math.floor( (mX / canvas.width) * pixel);
+  var pixelPlaceH = Math.floor( (mY / canvas.height) * pixel);
   var x = (pixelPlaceW/pixel) * w;
   var y = (pixelPlaceH/pixel) * h;
   // console.log(pixelPlaceW, x);
@@ -140,7 +170,7 @@ function mouseGridPosition(e,
   return data;
 }
 
-function drawPixel (data, dontChangeData) {
+function drawPixel (data, dontChangeData, alwaysDraw) {
   var {
     left,
     top,
@@ -154,12 +184,17 @@ function drawPixel (data, dontChangeData) {
   } = data;
 
   // console.log(canvas);
-  switch (brushTool) {
+  var layerKey = "l" + currentLayer.value;
+  var drawStyle = alwaysDraw ? "pencil" : brushTool;
+
+  switch (drawStyle) {
     case "pencil":
       ctx.globalCompositeOperation = "source-over"
       ctx.fillStyle = colorElement.value;
       ctx.fillRect(left, top, right, bottom);
-      if(!dontChangeData) selectedFrameData[centerX + "_" + centerY] = {
+      // console.log(ctx.globalCompositeOperation);
+      selectedFrameData["l" + currentLayer.value] = selectedFrameData[layerKey] || {};
+      if(!dontChangeData) selectedFrameData[layerKey][centerX + "_" + centerY] = {
         top,
         right,
         bottom,
@@ -175,7 +210,8 @@ function drawPixel (data, dontChangeData) {
       ctx.globalCompositeOperation = "destination-out"
       ctx.fillStyle = "rgba(255,255,255,1)";
       ctx.fillRect(left, top, right, bottom);
-      if(!dontChangeData) delete selectedFrameData[centerX + "_" + centerY];
+      selectedFrameData["l" + currentLayer.value] = selectedFrameData[layerKey] || {};
+      if(!dontChangeData) delete selectedFrameData[layerKey][centerX + "_" + centerY];
     break;
   }
 
@@ -204,18 +240,29 @@ function setTool(toolName) {
   cursor.className = toolName;
 }
 
-function clearCanvas(overlay) {
+function clearCanvas(overlay, full) {
+  console.log("clearing canvas");
   // get canvas
-  var data = getCanvasAndContext(false, overlay);
-  var canvas = data.canvas;
-  var ctx = data.context;
+  var ctx, ctxArr = [];
+
+  if(full) {
+    for (var i = 0; i < document.querySelectorAll(".canvas").length; i++) {
+      ctx = window["canvas" + i].getContext("2d");
+      ctxArr.push(ctx);
+    }
+  } else {
+    ctx = window["canvas" + currentLayer.value].getContext("2d");
+    ctxArr.push(ctx);
+  }
   // console.log("clear", canvas);
   // erase
-  ctx.globalCompositeOperation = "destination-out"
-  ctx.fillStyle = "rgba(255,255,255,1)";
-  ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-  // return to original comp
-  ctx.globalCompositeOperation = "source-over"
+  ctxArr.map(ctx => {
+    ctx.globalCompositeOperation = "destination-out"
+    ctx.fillStyle = "rgba(255,255,255,1)";
+    ctx.fillRect(0, 0, brushoverlay.width, brushoverlay.height);
+    // return to original comp
+    ctx.globalCompositeOperation = "source-over";
+  })
   // console.trace();
   selectedFrameData = null;
   selectedFrameData = {};
@@ -240,18 +287,23 @@ function setCurrentFrame(frame) {
     // console.log("no elem");
 }
 
+function setLayerFrame(layer) {
+  currentLayer.value = layer;
+}
+
 function storeImageData() {
-  var ctx = canvas.getContext("2d");
-  // var data = ctx.getImageData(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-  var data = selectedFrameData;
-  // var place = framesArray.length > 0 ? framesArray.length - 1 : 0;
+  var dataStr = JSON.stringify(selectedFrameData);
+  var data = JSON.parse(dataStr);
+  // console.log(data === selectedFrameData);
   framesArray[currentFrame] = data;
+  // console.log(framesArray[currentFrame] === selectedFrameData);
+  // console.log(framesArray);
   markSavedFrame(currentFrame);
   updateDisplayFrame(currentFrame);
 }
 
 function markSavedFrame(frame) {
-  console.log(frame);
+  // console.log(frame);
   unsavedFrame = false;
   var displayFrame = frames.querySelector(".frame.frame-" + frame);
   if(!displayFrame) return;
@@ -282,8 +334,25 @@ function markUnsavedFrame(frame) {
 }
 
 function openImage(place) {
-  var ctx = canvas.getContext("2d");
-  if(framesArray[place]) ctx.putImageData(objDataToImageData(framesArray[place]), 0, 0);
+  // var layers = Object.keys(framesArray[place]);
+  // console.log("open:", place, "|", "layers:", framesArray[place]);
+  // var len = layers.length;
+  // var len = layerCount;
+
+  var canvas, ctx;
+  if(framesArray[place]) {
+    var layers = objDataToImageData(framesArray[place], true);
+    // console.log("layers", layers);
+    layers.map((imageData, ind) => {
+      canvas = window["canvas" + ind];
+      // console.log("canvas", canvas);
+      ctx = canvas.getContext("2d");
+      // console.log("image data", imageData);
+      // console.log("image obj data", framesArray[place]["l" + ind]);
+      ctx.putImageData(imageData, 0, 0);
+    })
+  }
+  selectedFrameData = JSON.parse(JSON.stringify(framesArray[place]));
 }
 
 function goToFrame(place) {
@@ -409,7 +478,7 @@ function insert(place) {
 function removeListeners() {
   // console.log("removing listeners");
   Object.keys(listenerFunctions).map(function(funcName) {
-    canvas.removeEventListener(funcName, listenerFunctions[funcName]);
+    brushoverlay.removeEventListener(funcName, listenerFunctions[funcName]);
   });
 }
 
@@ -417,6 +486,14 @@ function resetFrames() {
   framesArray = [];
   currentFrame = 0;
   frames.innerHTML = "";
+}
+
+function resetLayers() {
+  // reset select element
+  currentLayer.value = 0;
+  currentLayer.innerHTML = "";
+  // reset cavas containment element
+  canvasLayers.innerHTML = "";
 }
 
 function playbackFrames() {
@@ -461,13 +538,24 @@ function enableOrDisableTools(whichTools, action) {
   }
 }
 
+// initiates a new work area
 function createCanvas() {
   // console.log(parseInt(pixelByPixel.value));
+  selectedFrameData = null;
+  selectedFrameData = {};
+  currentLayer.value = 0;
+  layerCount = 0;
+  framesArray = [],
+  currentFrame = 0,
+  playbackRunning = false,
+  playbackInterval = null,
+  unsavedFrame = false;
   removeListeners();
   resetFrames();
+  resetLayers();
   addDisplayFrame(0);
   setCurrentFrame(0);
-  initCanvas(canvas, "2d", parseInt(pixelByPixel.value));
+  initCanvas("2d", parseInt(pixelByPixel.value));
 }
 
 // populate options
@@ -481,9 +569,8 @@ for(var i = 1; i <= 16; i++) {
 function getCanvasAndContext(isNew, overlay) {
   // isNew - if true, returns a new canvas
   // ovelay - if true, returns the overlay canvas
-  var thisCanvas = overlay ? brushoverlay : canvas;
-  // http://stackoverflow.com/a/934925/4107851
-  var tempCanvas = isNew ? makeCanvas(overlay, canvas.offsetWidth, canvas.offsetHeight, null, true) : brushoverlay;
+  var thisCanvas = overlay ? brushoverlay : window["canvas" + currentLayer.value];
+  var tempCanvas = isNew ? makeCanvas(overlay, brushoverlay.width, brushoverlay.height, null, true) : thisCanvas;
   // console.log(tempCanvas);
   var ctx = tempCanvas.getContext("2d");
   return {
@@ -543,10 +630,14 @@ function getImageDataURL(imageData) {
   var ctx = data.context;
 
   // place image data
+  var gpc = ctx.globalCompositeOperation;
+  ctx.globalCompositeOperation = "source-over"
+  // console.log(ctx.globalCompositeOperation);
   ctx.putImageData(imageData, 0, 0);
   // extract dataURL
   var url = tempCanvas.toDataURL("image/png");
   // console.log(url);
+  ctx.globalCompositeOperation = gpc;
   return url;
 }
 
@@ -573,22 +664,45 @@ function checkDelete() {
   return confirm("Are you sure you want to delete this frame?");
 }
 
-function objDataToImageData(data) {
+function objDataToImageData(data, perLayer) {
   var CnC = getCanvasAndContext(true);
   var { canvas, context: ctx } = CnC;
   canvas.className = "test";
-  Object.keys(data).map(function (key) {
-    var pixelData = data[key];
+  var dataOnLayer = [];
 
-    drawPixel(Object.assign(pixelData, CnC), true);
+  Object.keys(data).map(function (layer) {
+    var layerData = data[layer];
+    // console.log("layerData", layer, layerData);
+    Object.keys(layerData).map(function (key) {
+      var pixelData = layerData[key];
+      // console.log("pixeldata", key, pixelData);
+      drawPixel(Object.assign(pixelData, CnC), true, true);
+      // if we need to get the data for individual layers
+    })
+    // get the iamge data
+    if(perLayer) {
+      dataOnLayer.push( ctx.getImageData(0, 0, brushoverlay.width, brushoverlay.height) );
+
+      ctx.globalCompositeOperation = "destination-out"
+      ctx.fillStyle = "rgba(255,255,255,1)";
+      ctx.fillRect(0, 0, brushoverlay.width, brushoverlay.height);
+      // return to original comp
+      ctx.globalCompositeOperation = "source-over"
+    }
   })
 
   // console.log("blah");
   // console.log(canvas, ctx);
   // console.log(canvas.toDataURL("image/png"));
-  var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   // console.log(imageData);
-  return imageData;
+  // console.log("per layer", perLayer);
+  if(perLayer) {
+    // console.log(dataOnLayer);
+    return dataOnLayer;
+  } else {
+    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return imageData;
+  }
 }
 
 // buttons events

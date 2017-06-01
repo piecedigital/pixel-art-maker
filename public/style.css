@@ -12,10 +12,17 @@ body {
   transition: .2s all ease;
 }
 
+.divider {
+  height: 2px;
+  width: 100%;
+  max-width: 200px;
+  margin: 4px auto;
+  background-color: black;
+}
+
 .work-area {
   display: flex;
   flex-direction: row;
-  /*align-items: center;*/
   height: 100%;
   padding: 0 5em;
 }
@@ -30,34 +37,33 @@ body {
 .canvas-wrap {
   display: inline-block;
   position: relative;
-  /*padding: 2px;*/
   margin: auto;
-  overflow: hidden;
   box-shadow: 0 0 0 2px black;
-}
-
-#canvas {
-  display: block;
-  /*width: 20em;*/
-  margin: 0;
   background-image: url("./transparent.png");
   background-size: 96px;
 }
 
+.canvas {
+  display: block;
+  margin: 0;
+}
+
+.canvas:not(:first-child) {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
 #brushoverlay {
-  /*display: none;*/
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  /*background-color: rgba(0, 255, 0, .9);*/
   transition: 0s all linear;
 }
 
 #cursor {
-  /*display: none;*/
   content: "";
   position: absolute;
   top: 0;
@@ -69,17 +75,33 @@ body {
   transition: 0s all linear;
 }
 
-#cursor:after {
+#cursor:before {
   /*display: none;*/
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
+  top: -2px;
+  left: -2px;
   width: 100%;
   height: 100%;
   pointer-events: none;
   /*background-color: rgba(255, 0, 0, .2);*/
   transition: 0s all linear;
+  border: 2px outset white;
+  box-sizing: content-box;
+}
+
+#cursor:after {
+  /*display: none;*/
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /*background-color: rgba(255, 0, 0, .2);*/
+  transition: 0s all linear;
+  box-sizing: content-box;
 }
 
 #cursor.pencil:after {
