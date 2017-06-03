@@ -180,7 +180,8 @@ function drawPixel (data, dontChangeData, alwaysDraw) {
     centerY,
     pixel,
     canvas,
-    context: ctx
+    context: ctx,
+    color
   } = data;
 
   // console.log(canvas);
@@ -190,7 +191,7 @@ function drawPixel (data, dontChangeData, alwaysDraw) {
   switch (drawStyle) {
     case "pencil":
       ctx.globalCompositeOperation = "source-over"
-      ctx.fillStyle = colorElement.value;
+      ctx.fillStyle = alwaysDraw ? color : colorElement.value;
       ctx.fillRect(left, top, right, bottom);
       // console.log(ctx.globalCompositeOperation);
       selectedFrameData["l" + currentLayer.value] = selectedFrameData[layerKey] || {};
@@ -203,7 +204,8 @@ function drawPixel (data, dontChangeData, alwaysDraw) {
         centerY,
         pixel,
         canvas,
-        context: ctx
+        context: ctx,
+        color: colorElement.value
       };
     break;
     case "eraser":
@@ -343,16 +345,37 @@ function openImage(place) {
   if(framesArray[place]) {
     var layers = objDataToImageData(framesArray[place], true);
     // console.log("layers", layers);
-    layers.map((imageData, ind) => {
+    // OLD
+    // layers.map((imageData, ind) => {
+    //   canvas = window["canvas" + ind];
+    //   // console.log("canvas", canvas);
+    //   ctx = canvas.getContext("2d");
+    //   // console.log("image data", imageData);
+    //   // console.log("image obj data", framesArray[place]["l" + ind]);
+    //   ctx.putImageData(imageData, 0, 0);
+    // })
+    // NEW
+    console.log(layers);
+    for (var ind = 0; ind < layerCount; ind++) {
+      var imageData = layers[ind];
+      console.log("image data", imageData);
       canvas = window["canvas" + ind];
-      // console.log("canvas", canvas);
       ctx = canvas.getContext("2d");
-      // console.log("image data", imageData);
-      // console.log("image obj data", framesArray[place]["l" + ind]);
-      ctx.putImageData(imageData, 0, 0);
-    })
+      // if the image data is available, put it
+      if(imageData) {
+        ctx.putImageData(imageData, 0, 0);
+      } else {
+        // if it's not available get some generic blank data
+        ctx.putImageData(getBlankCanvasImageData(), 0, 0);
+      }
+    }
   }
-  selectedFrameData = JSON.parse(JSON.stringify(framesArray[place]));
+  selectedFrameData = JSON.parse(JSON.stringify(framesArray[place] || {}));
+}
+
+function getBlankCanvasImageData() {
+  var c = makeCanvas(false, brushoverlay.width, brushoverlay.height, null, true);
+  return c.getContext("2d").getImageData(0, 0, brushoverlay.width, brushoverlay.height);
 }
 
 function goToFrame(place) {
@@ -583,10 +606,10 @@ function submitImages() {
   if(!checkUnsavedFrame()) return;
   // var imageBlobs = [];
   var imageDataURLs = [];
-  framesArray.map(function (imageData, ind) {
-    if(!imageData) return;
+  framesArray.map(function (imageDataObj, ind) {
+    if(!imageDataObj) return;
     // console.log("working on saving images");
-    var parsedDataURL = parseImageDataURL(getImageDataURL(objDataToImageData(imageData)));
+    var parsedDataURL = parseImageDataURL(getImageDataURL(objDataToImageData(imageDataObj)));
     imageDataURLs.push(parsedDataURL);
     // getImageBlob(function (blob) {
     //   imageBlobs.push(blob);
