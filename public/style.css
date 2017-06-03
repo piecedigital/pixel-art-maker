@@ -204,6 +204,10 @@ body {
   box-shadow: 0 0 0 2px rgba(255, 0, 0, 1);
 }
 
+.layers-counter {
+  font-weight: bold;
+}
+
 button, select, input {
   margin: 4px;
   padding: 8px;

@@ -13,6 +13,7 @@ var framerate = tools.getElementsByClassName("framerate")[0];
 var canvasLayers = workArea.querySelector(".canvas-layers");
 // var canvasLayersTabs = workArea.querySelector(".canvas-layers-tabs");
 var currentLayer = workArea.querySelector(".current-layer");
+var totalLayersCounter = workArea.querySelector(".total-layers")
 
 // variables
 var listenerFunctions = {},
@@ -128,6 +129,7 @@ function appendNewLayerOption() {
 
 function newLayer() {
   layerCount++;
+  totalLayersCounter.innerText = layerCount;
   appendNewLayerOption();
   appendNewCanvasLayer(brushoverlay.width, brushoverlay.height);
 }
