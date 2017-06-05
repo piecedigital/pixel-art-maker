@@ -24,7 +24,14 @@ var listenerFunctions = {},
   layerCount = 0,
   playbackRunning = false,
   playbackInterval = null,
-  unsavedFrame = false;
+  unsavedFrame = false,
+  selectionState = {
+    action: null, // null, selecting, selected
+    point1: {}, // start selection
+    point2: {}, // send selection
+    data: {} // copy of selectedFrameData, but only the data within selection
+  }
+  ;
 
 // http://stackoverflow.com/a/15666143/4107851
 var PIXEL_RATIO = (function () {
@@ -87,25 +94,45 @@ function initCanvas(contextValue, pixel) {
   );
 
   listenerFunctions.click = function (e) {
-    drawPixel(mouseGridPosition(e, {
-      pixel,
-      w,
-      h
-    }))
-  };
-  brushoverlay.addEventListener("click", listenerFunctions.click);
-
-  listenerFunctions.mousemove = function(e) {
-    var mouseData = mouseGridPosition(e, {
+    mouseAction({
+      e,
+      once: "click",
       pixel,
       w,
       h
     });
-    // console.log(e.button, e.buttons);
-    if(e.button === 0 && e.buttons === 1) {
-      drawPixel(mouseData);
-    }
-    drawTool(mouseData);
+  };
+  brushoverlay.addEventListener("click", listenerFunctions.click);
+
+  listenerFunctions.press = function (e) {
+    mouseAction({
+      e,
+      once: "press",
+      pixel,
+      w,
+      h
+    });
+  };
+  brushoverlay.addEventListener("mousedown", listenerFunctions.press);
+
+  listenerFunctions.release = function (e) {
+    mouseAction({
+      e,
+      once: "release",
+      pixel,
+      w,
+      h
+    });
+  };
+  brushoverlay.addEventListener("mouseup", listenerFunctions.release);
+
+  listenerFunctions.mousemove = function(e) {
+    mouseAction({
+      e,
+      pixel,
+      w,
+      h
+    });
   };
   brushoverlay.addEventListener("mousemove", listenerFunctions.mousemove);
 }
@@ -172,6 +199,52 @@ function mouseGridPosition(e,
   return data;
 }
 
+function mouseAction(obj) {
+  var {
+    e,
+    once,
+    pixel,
+    w,
+    h
+  } = obj;
+  var mouseData = mouseGridPosition(e, {
+    pixel,
+    w,
+    h
+  });
+  console.log(e.button, e.buttons);
+  if(e.button === 0 && e.buttons === 1) {
+    drawPixel(mouseData);
+  }
+
+  if(once) {
+    if(once === "press") {
+      console.log("press");
+      switch (brushTool) {
+        case "select":
+          selectionState.action = "selecting";
+          selectionState.point1 = JSON.parse(JSON.stringify(mouseData));
+          console.log("selecting");
+        break;
+      }
+    }
+
+    if(once === "release") {
+      console.log("release");
+      switch (brushTool) {
+        case "select":
+          selectionState.action = "selected";
+          selectionState.point2 = JSON.parse(JSON.stringify(mouseData));
+        break;
+      }
+    }
+  }
+
+  // draw cursor
+  drawTool(mouseData);
+  // console.log(selectionState);
+}
+
 function drawPixel (data, dontChangeData, alwaysDraw) {
   var {
     left,
@@ -224,17 +297,19 @@ function drawPixel (data, dontChangeData, alwaysDraw) {
 }
 
 function drawTool(data) {
-  // var { canvas, context: ctx } = getCanvasAndContext(false, true);
-  // clearCanvas(true);
-  // drawPixel(Object.assign(data, {
-  //   canvas,
-  //   context: ctx
-  // }));
-  // console.log(cursor);
-  cursor.style.left = data.centerX - (data.width / 2) + "px";
-  cursor.style.top = data.centerY - (data.height / 2) + "px";
-  cursor.style.width = data.width + "px";
-  cursor.style.height = data.height + "px";
+  if(brushTool === "select" && selectionState.action) {
+    switch (selectionState.action) {
+      case "selecting":
+        cursor.style.width = data.left + data.width + "px";
+        cursor.style.height = data.top + data.height + "px";
+      break;
+    }
+  } else {
+    cursor.style.left = data.centerX - (data.width / 2) + "px";
+    cursor.style.top = data.centerY - (data.height / 2) + "px";
+    cursor.style.width = data.width + "px";
+    cursor.style.height = data.height + "px";
+  }
 }
 
 function setTool(toolName) {
