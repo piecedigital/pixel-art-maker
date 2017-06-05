@@ -212,16 +212,21 @@ function mouseAction(obj) {
     w,
     h
   });
-  console.log(e.button, e.buttons);
+  // console.log(e.button, e.buttons);
   if(e.button === 0 && e.buttons === 1) {
     drawPixel(mouseData);
   }
 
   if(once) {
     if(once === "press") {
-      console.log("press");
+      // console.log("press");
+      console.log(mouseData);
       switch (brushTool) {
         case "select":
+          selectionState.action = null;
+          drawTool(mouseData);
+          // if(selectionState.action !== "selecting") {
+          // }
           selectionState.action = "selecting";
           selectionState.point1 = JSON.parse(JSON.stringify(mouseData));
           console.log("selecting");
@@ -230,7 +235,7 @@ function mouseAction(obj) {
     }
 
     if(once === "release") {
-      console.log("release");
+      // console.log("release");
       switch (brushTool) {
         case "select":
           selectionState.action = "selected";
@@ -300,8 +305,10 @@ function drawTool(data) {
   if(brushTool === "select" && selectionState.action) {
     switch (selectionState.action) {
       case "selecting":
-        cursor.style.width = data.left + data.width + "px";
-        cursor.style.height = data.top + data.height + "px";
+        console.log((data.left + data.width) - (selectionState.point1.left) + "px");
+        console.log((data.top + data.height) - (selectionState.point1.top) + "px");
+        cursor.style.width = (data.left + data.width) - (selectionState.point1.left) + "px";
+        cursor.style.height = (data.top + data.height) - (selectionState.point1.top) + "px";
       break;
     }
   } else {
