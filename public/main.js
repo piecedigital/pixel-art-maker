@@ -27,8 +27,9 @@ var listenerFunctions = {},
   unsavedFrame = false,
   selectionState = {
     action: null, // null, selecting, selected
-    point1: {}, // start selection
-    point2: {}, // send selection
+    startPoint: {}, // start selection
+    point1: {}, // top-right selection
+    point2: {}, // bottom-left selection
     data: {} // copy of selectedFrameData, but only the data within selection
   }
   ;
@@ -171,6 +172,7 @@ function mouseGridPosition(e,
   }) {
   var { canvas, context: ctx } = getCanvasAndContext();
   // console.log("click", e);
+  // console.log(canvas, ctx);
   var mX = e.offsetX;
   var mY = e.offsetY;
   // console.log( Math.round( (mX / canvas.offsetWidth) * pixel) );
@@ -192,6 +194,8 @@ function mouseGridPosition(e,
     context: ctx,
     width: w/pixel,
     height: h/pixel,
+    rawMouseX: mX,
+    rawMouseY: mY
   };
   data.centerX = data.left + (data.right / 2);
   data.centerY = data.top + (data.bottom / 2);
@@ -213,24 +217,28 @@ function mouseAction(obj) {
     h
   });
   // console.log(e.button, e.buttons);
-  if(e.button === 0 && e.buttons === 1) {
+  if(normalizeMouse(e) === "left" && brushTool === "pencil") {
     drawPixel(mouseData);
   }
 
+  var mouse = normalizeMouse(e);
   if(once) {
-    if(once === "press") {
-      // console.log("press");
-      console.log(mouseData);
-      switch (brushTool) {
-        case "select":
+    // console.log(normalizeMouse(e));
+    if(mouse === "left") {
+      if(once === "press") {
+        // console.log("press");
+        // console.log(mouseData);
+        switch (brushTool) {
+          case "select":
           selectionState.action = null;
           drawTool(mouseData);
           // if(selectionState.action !== "selecting") {
           // }
           selectionState.action = "selecting";
-          selectionState.point1 = JSON.parse(JSON.stringify(mouseData));
-          console.log("selecting");
-        break;
+          selectionState.startPoint = JSON.parse(JSON.stringify(mouseData));
+          // console.log("selecting");
+          break;
+        }
       }
     }
 
@@ -238,16 +246,102 @@ function mouseAction(obj) {
       // console.log("release");
       switch (brushTool) {
         case "select":
-          selectionState.action = "selected";
+        selectionState.action = "selected";
+        if(true) {
+          selectionState.point1 = JSON.parse(JSON.stringify(selectionState.startPoint));
           selectionState.point2 = JSON.parse(JSON.stringify(mouseData));
+        } else {
+          selectionState.point1 = JSON.parse(JSON.stringify(mouseData));
+          selectionState.point2 = JSON.parse(JSON.stringify(selectionState.startPoint));
+        }
         break;
       }
+
+      var selection = getSelection(obj);
+      console.log(selection);
+      var simplifiedSelection = simplifySelection(selection);
+      console.log(simplifiedSelection);
     }
   }
 
   // draw cursor
   drawTool(mouseData);
   // console.log(selectionState);
+}
+
+function getSelection(obj) {
+  var {
+    pixel,
+    w,
+    h
+  } = obj;
+
+  var maxTicks = 8*8, tick = 0, blocks = [], lastPoint = null, reachedEnd = false;
+
+  while (tick < maxTicks && !reachedEnd) {
+    // console.log(reachedEnd);
+    if(lastPoint) {
+      if(
+        lastPoint.centerX === selectionState.point2.centerX &&
+        lastPoint.centerY === selectionState.point2.centerY
+      ) {
+        reachedEnd = true;
+        continue
+      };
+      var x, y;
+      if(lastPoint.centerX === selectionState.point2.centerX) {
+        // console.log("reset x, next y");
+        x = selectionState.point1.centerX;
+        y = lastPoint.centerY + lastPoint.height;
+        // console.log(y, selectionState.point2.centerY);
+      } else {
+        // console.log("next x");
+        x = lastPoint.centerX + lastPoint.width;
+      }
+      lastPoint = JSON.parse(JSON.stringify(
+        mouseGridPosition({
+          offsetX: x,
+          offsetY: y
+        },
+        {
+          pixel,
+          w,
+          h
+        })
+      ))
+    } else {
+      // console.log("initial point");
+      var x, y;
+      x = selectionState.point1.centerX;
+      y = selectionState.point1.centerY;
+      lastPoint = JSON.parse(JSON.stringify(
+        mouseGridPosition({
+          offsetX: x,
+          offsetY: y
+        },
+        {
+          pixel,
+          w,
+          h
+        })
+      ))
+    }
+
+    blocks.push(lastPoint);
+    // drawPixel(Object.assign(lastPoint,
+    //   getCanvasAndContext()
+    // ), true, true);
+
+    tick++;
+  }
+
+  return blocks;
+}
+
+function simplifySelection(selection) {
+  return selection.map(function (data) {
+    return data.centerX + "_" + data.centerY;
+  });
 }
 
 function drawPixel (data, dontChangeData, alwaysDraw) {
@@ -269,6 +363,7 @@ function drawPixel (data, dontChangeData, alwaysDraw) {
   var drawStyle = alwaysDraw ? "pencil" : brushTool;
 
   switch (drawStyle) {
+    case "select": // TEMPORARY
     case "pencil":
       ctx.globalCompositeOperation = "source-over"
       ctx.fillStyle = alwaysDraw ? color : colorElement.value;
@@ -305,10 +400,23 @@ function drawTool(data) {
   if(brushTool === "select" && selectionState.action) {
     switch (selectionState.action) {
       case "selecting":
-        console.log((data.left + data.width) - (selectionState.point1.left) + "px");
-        console.log((data.top + data.height) - (selectionState.point1.top) + "px");
-        cursor.style.width = (data.left + data.width) - (selectionState.point1.left) + "px";
-        cursor.style.height = (data.top + data.height) - (selectionState.point1.top) + "px";
+        // console.log(data.centerX, selectionState.startPoint.centerX)
+        if(data.centerX > selectionState.startPoint.centerX) {
+          // console.log("left side");
+          cursor.style.width = (data.left + data.width) - (selectionState.startPoint.left) + "px";
+        } else {
+          // console.log("right side");
+          cursor.style.left = data.left + "px";
+          cursor.style.width = (selectionState.startPoint.left + data.width) - (data.left) + "px";
+        }
+        if(data.centerY > selectionState.startPoint.centerY) {
+          // console.log("top side");
+          cursor.style.height = (data.top + data.height) - (selectionState.startPoint.top) + "px";
+        } else {
+          // console.log("bottom side");
+          cursor.style.top = data.top + "px";
+          cursor.style.height = (selectionState.startPoint.top + data.height) - (data.top) + "px";
+        }
       break;
     }
   } else {
@@ -810,6 +918,20 @@ function objDataToImageData(data, perLayer) {
     var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     return imageData;
   }
+}
+
+function normalizeMouse(e) {
+  var button;
+
+  if(e.button === 0 && e.buttons === 0) button = "none";
+  if(e.button === 0 && e.buttons === 1) button = "left";
+  if(e.button === 1 && e.buttons === 4) button = "middle";
+  if(e.button === 2 && e.buttons === 2) button = "right";
+  if(e.button === 0 && e.buttons === 5) button = "left-middle";
+  if(e.button === 0 && e.buttons === 3) button = "left-right";
+  if(e.button === 1 && e.buttons === 6) button = "middle-right";
+
+  return button;
 }
 
 // buttons events
