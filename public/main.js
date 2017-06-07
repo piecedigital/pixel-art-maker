@@ -162,6 +162,10 @@ function newLayer() {
   appendNewCanvasLayer(brushoverlay.width, brushoverlay.height);
 }
 
+function getCurrentLayer() {
+  return "l" + currentLayer.value;
+}
+
 function mouseGridPosition(e,
   {
     pixel,
@@ -246,21 +250,35 @@ function mouseAction(obj) {
       // console.log("release");
       switch (brushTool) {
         case "select":
-        selectionState.action = "selected";
-        if(true) {
+          selectionState.action = "selected";
+
+          // initial data
+          // console.log(mouseData);
           selectionState.point1 = JSON.parse(JSON.stringify(selectionState.startPoint));
           selectionState.point2 = JSON.parse(JSON.stringify(mouseData));
-        } else {
-          selectionState.point1 = JSON.parse(JSON.stringify(mouseData));
-          selectionState.point2 = JSON.parse(JSON.stringify(selectionState.startPoint));
-        }
+
+          if(mouseData.centerX < selectionState.startPoint) {
+            selectionState.point1.centerX = mouseData.centerX;
+            selectionState.point1.left = mouseData.left;
+            selectionState.point2.centerX = selectionState.startPoint.centerX;
+            selectionState.point2.left = selectionState.startPoint.left;
+          }
+          if(mouseData.centerY < selectionState.startPoint) {
+            selectionState.point1.centerY = mouseData.centerY;
+            selectionState.point1.left = mouseData.left;
+            selectionState.point2.centerY = selectionState.startPoint.centerY;
+            selectionState.point2.left = selectionState.startPoint.left;
+          }
+          // console.log(selectionState.point1.centerX, selectionState.point2.centerY);
+          // console.log(selectionState.point1.centerX, selectionState.point2.centerY);
+          var selection = getSelection(obj);
+          // console.log(selection);
+          var simplifiedSelection = simplifySelection(selection);
+          // console.log(simplifiedSelection);
+          var selectedPixels = selectPixels(simplifiedSelection, true);
+          console.log(selectedPixels);
         break;
       }
-
-      var selection = getSelection(obj);
-      console.log(selection);
-      var simplifiedSelection = simplifySelection(selection);
-      console.log(simplifiedSelection);
     }
   }
 
@@ -276,27 +294,27 @@ function getSelection(obj) {
     h
   } = obj;
 
-  var maxTicks = 8*8, tick = 0, blocks = [], lastPoint = null, reachedEnd = false;
+  var maxTicks = 8*8, tick = 0, blocks = [], lastPoint = null, reachedEnd = false, xPoint, yPoint, xPointEnd, yPointEnd, xNeg;
 
   while (tick < maxTicks && !reachedEnd) {
     // console.log(reachedEnd);
     if(lastPoint) {
       if(
-        lastPoint.centerX === selectionState.point2.centerX &&
-        lastPoint.centerY === selectionState.point2.centerY
+        lastPoint.centerX === selectionState[xPointEnd].centerX &&
+        lastPoint.centerY === selectionState[yPointEnd].centerY
       ) {
         reachedEnd = true;
         continue
       };
       var x, y;
-      if(lastPoint.centerX === selectionState.point2.centerX) {
+      if(lastPoint.centerX === selectionState[xPointEnd].centerX) {
         // console.log("reset x, next y");
-        x = selectionState.point1.centerX;
+        x = selectionState[xPoint].centerX;
         y = lastPoint.centerY + lastPoint.height;
         // console.log(y, selectionState.point2.centerY);
       } else {
         // console.log("next x");
-        x = lastPoint.centerX + lastPoint.width;
+        x = lastPoint.centerX + (lastPoint.width * xNeg);
       }
       lastPoint = JSON.parse(JSON.stringify(
         mouseGridPosition({
@@ -312,8 +330,27 @@ function getSelection(obj) {
     } else {
       // console.log("initial point");
       var x, y;
-      x = selectionState.point1.centerX;
-      y = selectionState.point1.centerY;
+      if(selectionState.point1.centerX <= selectionState.point2.centerX) {
+        x = selectionState.point1.centerX;
+        xPoint = "point1";
+        xPointEnd = "point2";
+        xNeg = 1;
+      } else {
+        x = selectionState.point2.centerX;
+        xPoint = "point2";
+        xPointEnd = "point1";
+        xNeg = 1;
+      }
+      if(selectionState.point1.centerY <= selectionState.point2.centerY) {
+        y = selectionState.point1.centerY;
+        yPoint = "point1";
+        yPointEnd = "point2";
+      } else {
+        y = selectionState.point2.centerY;;
+        yPoint = "point2";
+        yPointEnd = "point1";
+      }
+      // console.log(x, y, xPoint, yPoint);
       lastPoint = JSON.parse(JSON.stringify(
         mouseGridPosition({
           offsetX: x,
@@ -334,6 +371,7 @@ function getSelection(obj) {
 
     tick++;
   }
+  // console.log(lastPoint, selectionState);
 
   return blocks;
 }
@@ -342,6 +380,37 @@ function simplifySelection(selection) {
   return selection.map(function (data) {
     return data.centerX + "_" + data.centerY;
   });
+}
+
+function selectPixels(selection, simplified) {
+  var pixels = [];
+
+  if(simplified) {
+    proceed();
+  } else {
+    selection = selection.map(function (data) {
+      return data.centerX + "_" + data.centerY;
+    });
+    proceed();
+  }
+
+  function proceed() {
+    selection.map(function (coords) {
+      // console.log(coords);
+      // console.log(selectedFrameData);
+      // console.log(selectedFrameData[getCurrentLayer()]);
+      // console.log(selectedFrameData[getCurrentLayer()][coords]);
+
+      var data = selectedFrameData[getCurrentLayer()][coords];
+
+      if(data) pixels.push(
+        JSON.parse(JSON.stringify(data))
+      );
+
+    })
+  }
+
+  return pixels;
 }
 
 function drawPixel (data, dontChangeData, alwaysDraw) {
