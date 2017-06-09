@@ -248,6 +248,7 @@ function mouseAction(obj) {
             break;
           case "mover":
             selectionState.lastMousePos = newMouseData;
+            break;
         }
       }
     }
@@ -289,6 +290,7 @@ function mouseAction(obj) {
           break;
         case "mover":
           selectionState.lastMousePos = {};
+          break;
         default:
           resetSelectionState();
       }
@@ -426,6 +428,7 @@ function selectPixels(selection, simplified) {
 
   function proceed() {
     selection.map(function (coords) {
+      if(!selectedFrameData[getCurrentLayer()]) return;
       var data = selectedFrameData[getCurrentLayer()][coords];
 
       if(data) pixels[coords] = JSON.parse(JSON.stringify(data));
@@ -479,25 +482,40 @@ function moveSelection(mouseData) {
     xDist = xMove === "left" ? xDist * -1 : xDist;
     if(xDist === 0) xMove = null;
     yDist = Math.max.apply(null, yNumbers) - Math.min.apply(null, yNumbers);
-    yDist = yMove === "top" ? yDist * -1 : yDist;
+    yDist = yMove === "up" ? yDist * -1 : yDist;
     if(yDist === 0) yMove = null;
 
   // step 3
   if(xMove || yMove) {
-    var coordsOfSelected = Object.keys(selectionState.data.current);
-    coordsOfSelected.map(function(coords) {
+    // var coordsOfSelected = Object.keys(selectionState.data.current);
+    var coordsOfSelected = Object.keys(selectionState.data.moved);
+    // var coordsOfSelectedMoved = Object.keys(selectionState.data.moved);
+    var newMovedData = {};
+
+    coordsOfSelected.map(function(coords, ind) {
+      // erase the pixels at this position
+      // console.log("erase old pixel position");
+      // console.log(coords);
+      drawPixel(selectionState.data.moved[coords], true, null, true);
+
       // compare coord from selection with data from current layer
-      if(selectedFrameData[getCurrentLayer()][coords]) {
+      if(selectedFrameData[getCurrentLayer()][coords] && !selectionState.data.current[coords]) {
         // do this since the pixel is in selection
+        // draw old pixel
+        // console.log("draw old pixel");
+        // console.log(coords);
+        // console.log(selectedFrameData[getCurrentLayer()][coords]);
         drawPixel(selectedFrameData[getCurrentLayer()][coords], true, true);
-      } else {
-        // erase the pixels at this position
-        drawPixel(selectedFrameData[getCurrentLayer()][coords], true, null, true);
       }
     });
 
+    // move pixels
+    coordsOfSelected.map(function(coords, ind) {
+      movePixel(coords);
+    });
+
     // step 4
-    coordsOfSelected.map(function(coords) {
+    function movePixel(coords) {
       // move pixel coords
       // x
       selectionState.data.moved[coords].centerX += xDist;
@@ -510,12 +528,26 @@ function moveSelection(mouseData) {
 
       // draw pixel at new coords
       drawPixel(selectionState.data.moved[coords], true, true);
-    });
+
+      var newCenterX = selectionState.data.moved[coords].centerX,
+      newCenterY = selectionState.data.moved[coords].centerY;
+
+      newMovedData[newCenterX + "_" + newCenterY] = selectionState.data.moved[coords];
+      // console.log(newMovedData);
+    };
 
     // draw tool
     cursor.style.left = parseInt(cursor.style.left) + xDist + "px";
     cursor.style.top = parseInt(cursor.style.top) + yDist + "px";
+
+    // set new move data
+    delete selectionState.data.moved;
+    selectionState.data.moved = newMovedData;
   }
+
+  // set new last mouse position
+  selectionState.lastMousePos = mouseData;
+  // console.log(selectionState.data.moved);
 }
 
 function resetSelectionState() {
