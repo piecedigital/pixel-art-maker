@@ -25,12 +25,17 @@ var listenerFunctions = {},
   playbackRunning = false,
   playbackInterval = null,
   unsavedFrame = false,
+  mouseDown = false,
   selectionState = {
     action: null, // null, selecting, selected
     startPoint: {}, // start selection
     point1: {}, // top-right selection
     point2: {}, // bottom-left selection
-    data: {} // copy of selectedFrameData, but only the data within selection
+    lastMousePos: {},
+    data: {
+      current: {}, // the current position of the pixels
+      moved: {} // the new positions of the pixels
+    } // copy of selectedFrameData, but only the data within selection
   }
   ;
 
@@ -189,8 +194,8 @@ function mouseGridPosition(e,
   var data = {
     left: x,
     top: y,
-    right: w/pixel,
-    bottom: h/pixel,
+    right: x + w/pixel,
+    bottom: y + h/pixel,
     canvasWidth: w,
     canvasHeight: h,
     pixel,
@@ -201,8 +206,8 @@ function mouseGridPosition(e,
     rawMouseX: mX,
     rawMouseY: mY
   };
-  data.centerX = data.left + (data.right / 2);
-  data.centerY = data.top + (data.bottom / 2);
+  data.centerX = data.left + (data.width / 2);
+  data.centerY = data.top + (data.height / 2);
   // console.log(data);
   return data;
 }
@@ -221,32 +226,34 @@ function mouseAction(obj) {
     h
   });
   // console.log(e.button, e.buttons);
-  if(normalizeMouse(e) === "left" && brushTool === "pencil") {
-    drawPixel(mouseData);
-  }
 
   var mouse = normalizeMouse(e);
   if(once) {
     // console.log(normalizeMouse(e));
     if(mouse === "left") {
       if(once === "press") {
+        mouseDown = true;
         // console.log("press");
         // console.log(mouseData);
+        var newMouseData = JSON.parse(JSON.stringify(mouseData));
         switch (brushTool) {
           case "select":
-          selectionState.action = null;
-          drawTool(mouseData);
-          // if(selectionState.action !== "selecting") {
-          // }
-          selectionState.action = "selecting";
-          selectionState.startPoint = JSON.parse(JSON.stringify(mouseData));
-          // console.log("selecting");
-          break;
+            selectionState.action = null;
+            drawTool(mouseData);
+            // if(selectionState.action !== "selecting") {
+            // }
+            selectionState.action = "selecting";
+            selectionState.startPoint = newMouseData;
+            // console.log("selecting");
+            break;
+          case "mover":
+            selectionState.lastMousePos = newMouseData;
         }
       }
     }
 
     if(once === "release") {
+      mouseDown = false;
       // console.log("release");
       switch (brushTool) {
         case "select":
@@ -276,14 +283,37 @@ function mouseAction(obj) {
           var simplifiedSelection = simplifySelection(selection);
           // console.log(simplifiedSelection);
           var selectedPixels = selectPixels(simplifiedSelection, true);
-          console.log(selectedPixels);
-        break;
+          // console.log(selectedPixels)
+          selectionState.data.current = selectedPixels;
+          selectionState.data.moved = selectedPixels;
+          break;
+        case "mover":
+          selectionState.lastMousePos = {};
+        default:
+          resetSelectionState();
       }
     }
   }
 
+  if(mouseDown && normalizeMouse(e) === "left") {
+    switch (brushTool) {
+      case "pencil":
+        drawPixel(mouseData);
+        break;
+      case "mover":
+        if(mouseDown) moveSelection(mouseData);
+        break;
+    }
+  }
+
   // draw cursor
-  drawTool(mouseData);
+  switch (brushTool) {
+    case "mover":
+      // nothing here
+      break;
+    default:
+      drawTool(mouseData);
+  }
   // console.log(selectionState);
 }
 
@@ -383,7 +413,7 @@ function simplifySelection(selection) {
 }
 
 function selectPixels(selection, simplified) {
-  var pixels = [];
+  var pixels = {};
 
   if(simplified) {
     proceed();
@@ -396,47 +426,139 @@ function selectPixels(selection, simplified) {
 
   function proceed() {
     selection.map(function (coords) {
-      // console.log(coords);
-      // console.log(selectedFrameData);
-      // console.log(selectedFrameData[getCurrentLayer()]);
-      // console.log(selectedFrameData[getCurrentLayer()][coords]);
-
       var data = selectedFrameData[getCurrentLayer()][coords];
 
-      if(data) pixels.push(
-        JSON.parse(JSON.stringify(data))
-      );
-
+      if(data) pixels[coords] = JSON.parse(JSON.stringify(data));
     })
   }
 
   return pixels;
 }
 
-function drawPixel (data, dontChangeData, alwaysDraw) {
+function moveSelection(mouseData) {
+  if(selectionState.action !== "selected") return;
+  // 1. Check mouse new position (up, down, left, right)
+    // - if (mousePos.centerX < lastMousePos.centerX)
+    //   xMove = "left"
+    //   else
+    //   xMove = "right"
+    // - if (mousePos.centerY < lastMousePos.centerY)
+    //   yMove = "up"
+    //   else
+    //   yMove = "down"
+
+  // 2. Calculate distance needed to me moved (largestNumbers - smallestNumber)
+
+  // 3. Figure out which unselected pixels need to be redrawn, and redraw.
+    // - if(pixelPosition existsIn selectedFrameData && pixelPosition !existIn selectionState.data.current[pixelPosition])
+    //   drawPixel(selectedFrameData[pixelPosition], true, true)
+    //   else
+    //   drawPixel(selectedFrameData[pixelPosition], true, null, true)
+
+  // 4. Draw selected pixels at new position
+    // - drawPixel(selectedFrameData[pixelPosition], true, true)
+
+  // step one
+  var xMove, yMove;
+    if(mouseData.centerX < selectionState.lastMousePos.centerX) {
+      xMove = "left";
+    } else {
+      xMove = "right";
+    }
+    if(mouseData.centerY < selectionState.lastMousePos.centerY) {
+      yMove = "up";
+    } else {
+      yMove = "down";
+    }
+
+  // step two
+  var xDist, yDist,
+    xNumbers = [mouseData.centerX, selectionState.lastMousePos.centerX],
+    yNumbers = [mouseData.centerY, selectionState.lastMousePos.centerY];
+    xDist = Math.max.apply(null, xNumbers) - Math.min.apply(null, xNumbers);
+    xDist = xMove === "left" ? xDist * -1 : xDist;
+    if(xDist === 0) xMove = null;
+    yDist = Math.max.apply(null, yNumbers) - Math.min.apply(null, yNumbers);
+    yDist = yMove === "top" ? yDist * -1 : yDist;
+    if(yDist === 0) yMove = null;
+
+  // step 3
+  if(xMove || yMove) {
+    var coordsOfSelected = Object.keys(selectionState.data.current);
+    coordsOfSelected.map(function(coords) {
+      // compare coord from selection with data from current layer
+      if(selectedFrameData[getCurrentLayer()][coords]) {
+        // do this since the pixel is in selection
+        drawPixel(selectedFrameData[getCurrentLayer()][coords], true, true);
+      } else {
+        // erase the pixels at this position
+        drawPixel(selectedFrameData[getCurrentLayer()][coords], true, null, true);
+      }
+    });
+
+    // step 4
+    coordsOfSelected.map(function(coords) {
+      // move pixel coords
+      // x
+      selectionState.data.moved[coords].centerX += xDist;
+      selectionState.data.moved[coords].left += xDist;
+      selectionState.data.moved[coords].right += xDist;
+      // y
+      selectionState.data.moved[coords].centerY += yDist;
+      selectionState.data.moved[coords].top += yDist;
+      selectionState.data.moved[coords].bottom += yDist;
+
+      // draw pixel at new coords
+      drawPixel(selectionState.data.moved[coords], true, true);
+    });
+
+    // draw tool
+    cursor.style.left = parseInt(cursor.style.left) + xDist + "px";
+    cursor.style.top = parseInt(cursor.style.top) + yDist + "px";
+  }
+}
+
+function resetSelectionState() {
+  selectionState = {
+    action: null, // null, selecting, selected
+    startPoint: {}, // start selection
+    point1: {}, // top-right selection
+    point2: {}, // bottom-left selection
+    lastMousePos: {},
+    data: {
+      current: {}, // the current position of the pixels
+      moved: {} // the new positions of the pixels
+    } // copy of selectedFrameData, but only the data within selection
+  }
+}
+
+function drawPixel (data, dontChangeData, alwaysDraw, erase) {
   var {
     left,
     top,
     right,
     bottom,
+    width,
+    height,
     centerX,
     centerY,
     pixel,
-    canvas,
-    context: ctx,
     color
   } = data;
+
+  var { canvas, context: ctx } = getCanvasAndContext();
 
   // console.log(canvas);
   var layerKey = "l" + currentLayer.value;
   var drawStyle = alwaysDraw ? "pencil" : brushTool;
+  drawStyle = erase ? "eraser" : drawStyle;
 
   switch (drawStyle) {
     case "select": // TEMPORARY
     case "pencil":
       ctx.globalCompositeOperation = "source-over"
       ctx.fillStyle = alwaysDraw ? color : colorElement.value;
-      ctx.fillRect(left, top, right, bottom);
+      ctx.fillRect(left, top, width, height);
       // console.log(ctx.globalCompositeOperation);
       selectedFrameData["l" + currentLayer.value] = selectedFrameData[layerKey] || {};
       if(!dontChangeData) selectedFrameData[layerKey][centerX + "_" + centerY] = {
@@ -444,6 +566,8 @@ function drawPixel (data, dontChangeData, alwaysDraw) {
         right,
         bottom,
         left,
+        width,
+        height,
         centerX,
         centerY,
         pixel,
@@ -455,7 +579,7 @@ function drawPixel (data, dontChangeData, alwaysDraw) {
     case "eraser":
       ctx.globalCompositeOperation = "destination-out"
       ctx.fillStyle = "rgba(255,255,255,1)";
-      ctx.fillRect(left, top, right, bottom);
+      ctx.fillRect(left, top, width, height);
       selectedFrameData["l" + currentLayer.value] = selectedFrameData[layerKey] || {};
       if(!dontChangeData) delete selectedFrameData[layerKey][centerX + "_" + centerY];
     break;
@@ -499,6 +623,7 @@ function drawTool(data) {
 function setTool(toolName) {
   // console.log(toolName);
   brushes.querySelector(".brush-show").className = "brush-show " + toolName;
+  brushoverlay.className = toolName;
   brushTool = toolName;
   cursor.className = toolName;
 }

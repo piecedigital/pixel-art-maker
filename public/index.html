@@ -36,6 +36,7 @@
             <button class="brush pencil" title="Pencil tool" type="button" name="button" onclick="setTool('pencil')"></button>
             <button class="brush eraser" title="Eraser tool" type="button" name="button" onclick="setTool('eraser')"></button>
             <button class="brush select" title="Select tool" type="button" name="button" onclick="setTool('select')"></button>
+            <button class="brush mover" title="Mover tool" type="button" name="button" onclick="setTool('mover')"></button>
           </div>
           <div class="">
             <button type="button" name="button" onclick="clearCanvas()">Clear The Canvas</button>
@@ -105,7 +106,6 @@
         </div>
         <span class="canvas-wrap">
           <span class="canvas-layers"></span>
-          <span class="canvas-layers-tab"></span>
           <canvas id="brushoverlay" width="0" height="0"></canvas>
           <div id="cursor" class="pencil" width="0" height="0"></div>
         </span>
