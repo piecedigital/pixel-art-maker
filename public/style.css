@@ -148,7 +148,8 @@ body {
 
 .brush-show.pencil ~ .brush.pencil,
 .brush-show.eraser ~ .brush.eraser,
-.brush-show.select ~ .brush.select
+.brush-show.select ~ .brush.select,
+.brush-show.mover ~ .brush.mover
 {
   box-shadow: 0 0 0 2px rgba(0, 200, 255, 1);
 }

@@ -81,7 +81,6 @@ function initCanvas(contextValue, pixel) {
   w = editorDimensionMultiplier/*pixel*( (pixel*pixel) / (2) * 10 )*/,
   h = editorDimensionMultiplier/*pixel*( (pixel*pixel) / (2) * 10 )*/;// Math.round( (32 / canvas.offsetWidth) * w);
   // console.log(editorDimensionMultiplier);
-  // if(Object.prototype.toString.call(canvas) !== "[object HTMLCanvasElement]") return;// console.error("1st argument needs to be an HTML canvas element");
   if(typeof contextValue !== "string") return;// console.error("2nd argument needs to be a string denoting a 2d or 3d context of the canvas");
 
   var brushoverlay = makeCanvas(true, w, h);
@@ -548,6 +547,36 @@ function moveSelection(mouseData) {
   // set new last mouse position
   selectionState.lastMousePos = mouseData;
   // console.log(selectionState.data.moved);
+  markUnsavedFrame();
+}
+
+function setPixelsFromSelection(original) {
+  var selectionCoordsCurrent = selectionState.data.current;
+  var SCCArr = Object.keys(selectionCoordsCurrent);
+  var selectionCoordsMoved = selectionState.data.moved;
+  var SCMArr = Object.keys(selectionCoordsMoved);
+
+  if(original) {
+    console.log("set original");
+    // erase moved pixels
+    SCMArr.map(function (coords) {
+      drawPixel(selectionCoordsMoved[coords], true, null, true);
+    });
+    // redraw pixels that were in selection to their original place
+    SCCArr.map(function (coords) {
+      drawPixel(selectedFrameData[getCurrentLayer()][coords], true, true);
+    });
+    resetSelectionState();
+  } else {
+    console.log("set new");
+    // set new
+    SCCArr.map(function (coords) {
+      delete selectedFrameData[getCurrentLayer()][coords];
+    });
+    SCMArr.map(function (coords) {
+      selectedFrameData[getCurrentLayer()][coords] = selectionCoordsMoved[coords];
+    });
+  }
 }
 
 function resetSelectionState() {
@@ -565,6 +594,7 @@ function resetSelectionState() {
 }
 
 function drawPixel (data, dontChangeData, alwaysDraw, erase) {
+  // console.log(data);
   var {
     left,
     top,
@@ -574,19 +604,27 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
     height,
     centerX,
     centerY,
+    canvas,
+    context: ctx,
     pixel,
     color
   } = data;
 
-  var { canvas, context: ctx } = getCanvasAndContext();
+  if(Object.prototype.toString.call(canvas) !== "[object HTMLCanvasElement]") {
+    var CnC = getCanvasAndContext();
+    canvas = CnC.canvas;
+    ctx = CnC.context;
+  }
 
   // console.log(canvas);
   var layerKey = "l" + currentLayer.value;
   var drawStyle = alwaysDraw ? "pencil" : brushTool;
   drawStyle = erase ? "eraser" : drawStyle;
 
+  // console.log(data, dontChangeData, alwaysDraw, erase, drawStyle);
+  // console.log(canvas, ctx);
   switch (drawStyle) {
-    case "select": // TEMPORARY
+    // case "select": // TEMPORARY
     case "pencil":
       ctx.globalCompositeOperation = "source-over"
       ctx.fillStyle = alwaysDraw ? color : colorElement.value;
@@ -653,7 +691,15 @@ function drawTool(data) {
 }
 
 function setTool(toolName) {
-  // console.log(toolName);
+  // console.log(toolName, brushTool);
+  if(brushTool === "mover") {
+    if(!confirmSelectionMove()) {
+      setPixelsFromSelection(true);
+    } else {
+      setPixelsFromSelection();
+    }
+  }
+
   brushes.querySelector(".brush-show").className = "brush-show " + toolName;
   brushoverlay.className = toolName;
   brushTool = toolName;
@@ -896,7 +942,8 @@ function updateDisplayFrame(place) {
   var image;
   if(framesArray[place]) {
     image = document.createElement("img");
-    image.src = getImageDataURL(objDataToImageData(framesArray[place]));
+    var data = objDataToImageData(framesArray[place]);
+    image.src = getImageDataURL(data);
   }
 
   var frame = document.querySelector(".frame.frame-" + place);
@@ -1101,6 +1148,13 @@ function checkUnsavedFrame() {
   return true;
 }
 
+function confirmSelectionMove() {
+  if(selectionState.action === "selected") {
+    return confirm("you have made changes with the selection tool. Would you like to save these changes?");
+  }
+  return true;
+}
+
 function checkDelete() {
   return confirm("Are you sure you want to delete this frame?");
 }
@@ -1141,7 +1195,7 @@ function objDataToImageData(data, perLayer) {
     // console.log(dataOnLayer);
     return dataOnLayer;
   } else {
-    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var imageData = ctx.getImageData(0, 0, brushoverlay.width, brushoverlay.height);
     return imageData;
   }
 }
@@ -1158,6 +1212,10 @@ function normalizeMouse(e) {
   if(e.button === 1 && e.buttons === 6) button = "middle-right";
 
   return button;
+}
+
+function copyObject(obj) {
+  return JSON.parse(JSON.stringify(obj));
 }
 
 // buttons events
