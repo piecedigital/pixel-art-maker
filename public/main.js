@@ -314,9 +314,6 @@ function mouseAction(obj) {
     case "mover":
       // nothing here
       break;
-    case "select":
-      drawTool(mouseData);
-      break
     default:
       drawTool(mouseData);
   }
@@ -699,29 +696,29 @@ function drawTool(data) {
 
 function setTool(toolName) {
   // console.log(toolName, brushTool);
-  if(brushTool === "mover") {
+  if(toolName !== "mover") {
     confirmSelectionMove(function (res) {
       switch (res) {
         case 1:
           setPixelsFromSelection();
+          resetSelectionState();
           proceed();
           break;
         case 2:
           setPixelsFromSelection(true);
-          break;
-        default:
           proceed();
+          break;
       }
     });
     return;
   }
 
   function proceed() {
+    console.log("proceed");
     brushes.querySelector(".brush-show").className = "brush-show " + toolName;
     brushoverlay.className = toolName;
     brushTool = toolName;
     cursor.className = toolName;
-    resetSelectionState();
   }
   proceed();
 }
@@ -1032,29 +1029,57 @@ function resetLayers() {
   canvasLayers.innerHTML = "";
 }
 
+var playbackOptions;
+
 function playbackFrames() {
   if(playbackRunning) return;
   playbackRunning = true;
   enableOrDisableTools("playback", "disable");
-  var f = 0;
+  var f = 0, images = submitImages(true);
+
+  playbackOptions = openPlaybackDisplay();
+
   // console.log(parseInt(framerate.value));
   var tick = function() {
     setTimeout(function() {
       if(!playbackRunning) return;
-      openImage(f);
+      playbackOptions.setImage(images[f]);
       f++; if(f >= framesArray.length) f = 0;
       if(playbackRunning) tick();
     }, 1000/parseInt(framerate.value));
   }
   tick();
+
+}
+
+function openPlaybackDisplay() {
+  var background = document.createElement("div");
+  background.className = "overlay-background";
+
+  var img = document.createElement("img");
+  img.className = "playback-image";
+
+  document.body.appendChild(background);
+  document.body.appendChild(img);
+
+  return {
+    deleteSelf: function() {
+      document.body.removeChild(background);
+      document.body.removeChild(img);
+    },
+    setImage: function(imageData) {
+      img.src = imageData;
+    }
+  }
 }
 
 function stopPlayback() {
   if(!playbackRunning) return;
   playbackRunning = false;
   // clearInterval(playbackInterval);
-  openImage(currentFrame);
+  // openImage(currentFrame);
   enableOrDisableTools("playback", "enable");
+  playbackOptions.deleteSelf();
 }
 
 function enableOrDisableTools(whichTools, action) {
@@ -1116,26 +1141,32 @@ function getCanvasAndContext(isNew, overlay) {
   };
 }
 
-function submitImages() {
-  checkUnsavedFrame(function (res) {
-    switch (res) {
-      case 1:
-        // var imageBlobs = [];
-        var imageDataURLs = [];
+function submitImages(forPlayback) {
+  return (function functionName() {
+    var imageDataURLs = [];
+
+    checkUnsavedFrame(function (res) {
+      switch (res) {
+        case 1:
         framesArray.map(function (imageDataObj, ind) {
           if(!imageDataObj) return;
-          // console.log("working on saving images");
-          var parsedDataURL = parseImageDataURL(getImageDataURL(objDataToImageData(imageDataObj)));
-          imageDataURLs.push(parsedDataURL);
-          // getImageBlob(function (blob) {
-          //   imageBlobs.push(blob);
-          //   if(endOfArray(framesArray, ind)) sendImageBlobs(imageBlobs);
-          // });
+          var dataURL = getImageDataURL(objDataToImageData(imageDataObj));
+          if(forPlayback) {
+            imageDataURLs.push(dataURL);
+          } else {
+            var parsedDataURL = parseImageDataURL();
+            imageDataURLs.push(parsedDataURL);
+          }
         });
-        sendImageDataURLs(imageDataURLs);
+        if(!forPlayback) {
+          sendImageDataURLs(imageDataURLs);
+        }
         break;
-    }
-  }, 2);
+      }
+    }, 2);
+
+    return imageDataURLs;
+  })();
 }
 
 function sendImageDataURLs(dataURLs) {
