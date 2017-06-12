@@ -32,6 +32,7 @@ var listenerFunctions = {},
     point1: {}, // top-right selection
     point2: {}, // bottom-left selection
     lastMousePos: {},
+    pixelsMoved: false,
     data: {
       current: {}, // the current position of the pixels
       moved: {} // the new positions of the pixels
@@ -250,13 +251,12 @@ function mouseAction(obj) {
             break;
         }
       }
-    }
 
-    if(once === "release") {
-      mouseDown = false;
-      // console.log("release");
-      switch (brushTool) {
-        case "select":
+      if(once === "release") {
+        mouseDown = false;
+        // console.log("release");
+        switch (brushTool) {
+          case "select":
           selectionState.action = "selected";
 
           // initial data
@@ -286,12 +286,14 @@ function mouseAction(obj) {
           // console.log(selectedPixels)
           selectionState.data.current = selectedPixels;
           selectionState.data.moved = selectedPixels;
+          setTool("mover");
           break;
-        case "mover":
+          case "mover":
           selectionState.lastMousePos = {};
           break;
-        default:
+          default:
           resetSelectionState();
+        }
       }
     }
   }
@@ -312,6 +314,9 @@ function mouseAction(obj) {
     case "mover":
       // nothing here
       break;
+    case "select":
+      drawTool(mouseData);
+      break
     default:
       drawTool(mouseData);
   }
@@ -548,6 +553,7 @@ function moveSelection(mouseData) {
   selectionState.lastMousePos = mouseData;
   // console.log(selectionState.data.moved);
   markUnsavedFrame();
+  selectionState.pixelsMoved = true;
 }
 
 function setPixelsFromSelection(original) {
@@ -576,6 +582,7 @@ function setPixelsFromSelection(original) {
     SCMArr.map(function (coords) {
       selectedFrameData[getCurrentLayer()][coords] = selectionCoordsMoved[coords];
     });
+    selectionState.data.current = copyObject(selectionState.data.moved);
   }
 }
 
@@ -693,17 +700,30 @@ function drawTool(data) {
 function setTool(toolName) {
   // console.log(toolName, brushTool);
   if(brushTool === "mover") {
-    if(!confirmSelectionMove()) {
-      setPixelsFromSelection(true);
-    } else {
-      setPixelsFromSelection();
-    }
+    confirmSelectionMove(function (res) {
+      switch (res) {
+        case 1:
+          setPixelsFromSelection();
+          proceed();
+          break;
+        case 2:
+          setPixelsFromSelection(true);
+          break;
+        default:
+          proceed();
+      }
+    });
+    return;
   }
 
-  brushes.querySelector(".brush-show").className = "brush-show " + toolName;
-  brushoverlay.className = toolName;
-  brushTool = toolName;
-  cursor.className = toolName;
+  function proceed() {
+    brushes.querySelector(".brush-show").className = "brush-show " + toolName;
+    brushoverlay.className = toolName;
+    brushTool = toolName;
+    cursor.className = toolName;
+    resetSelectionState();
+  }
+  proceed();
 }
 
 function clearCanvas(overlay, full) {
@@ -809,20 +829,10 @@ function openImage(place) {
   if(framesArray[place]) {
     var layers = objDataToImageData(framesArray[place], true);
     // console.log("layers", layers);
-    // OLD
-    // layers.map((imageData, ind) => {
-    //   canvas = window["canvas" + ind];
-    //   // console.log("canvas", canvas);
-    //   ctx = canvas.getContext("2d");
-    //   // console.log("image data", imageData);
-    //   // console.log("image obj data", framesArray[place]["l" + ind]);
-    //   ctx.putImageData(imageData, 0, 0);
-    // })
-    // NEW
-    console.log(layers);
+    // console.log(layers);
     for (var ind = 0; ind < layerCount; ind++) {
       var imageData = layers[ind];
-      console.log("image data", imageData);
+      // console.log("image data", imageData);
       canvas = window["canvas" + ind];
       ctx = canvas.getContext("2d");
       // if the image data is available, put it
@@ -843,28 +853,60 @@ function getBlankCanvasImageData() {
 }
 
 function goToFrame(place) {
-  if(!checkUnsavedFrame()) return;
-  openImage(place);
-  setCurrentFrame(place);
+  console.log("go to");
+  checkUnsavedFrame(function (res) {
+    switch (res) {
+      case 1:
+        openImage(place);
+        setCurrentFrame(place);
+        break;
+    }
+  }, 2);
 }
 
 function saveFrame() {
   // console.log("saved image");
-  storeImageData();
+  confirmSelectionMove(function (res) {
+    switch (res) {
+      case 1:
+        setPixelsFromSelection();
+        storeImageData();
+        break;
+      case 2:
+        setPixelsFromSelection(true);
+        break;
+    }
+  });
 }
 
 function newFrame(emptyCanvas) {
   // console.log("next image", emptyCanvas);
-  storeImageData();
-  if(framesArray[framesArray.length-1]) {
-    framesArray.push(void(0));
-    addDisplayFrame(framesArray.length-1);
+  confirmSelectionMove(function (res) {
+    switch (res) {
+      case 1:
+        setPixelsFromSelection();
+        proceed();
+        break;
+      case 2:
+        setPixelsFromSelection(true);
+        break;
+      default:
+        proceed();
+    }
+  });
+
+  function proceed() {
+    storeImageData();
+    if(framesArray[framesArray.length-1]) {
+      framesArray.push(void(0));
+      addDisplayFrame(framesArray.length-1);
+    }
+    currentFrame = framesArray.length - 1;
+    openImage(currentFrame - 1);
+    setCurrentFrame(currentFrame);
+    if(emptyCanvas) clearCanvas();
+    // console.log(currentFrame, framesArray.length);
   }
-  currentFrame = framesArray.length - 1;
-  openImage(currentFrame - 1);
-  setCurrentFrame(currentFrame);
-  if(emptyCanvas) clearCanvas();
-  // console.log(currentFrame, framesArray.length);
 }
 
 function removeFrame(place) {
@@ -911,16 +953,22 @@ function createDisplayFrame(place) {
   frame.addEventListener("click", function (e) {
     var place = parseInt(frame.dataset.frame);
     // check if they're okay with leaving the frame with unsaved data
-
-    if(!checkUnsavedFrame()) return;
-    // console.log(place);
-    try {
-      markSavedFrame(currentFrame);
-      openImage(place);
-    } catch (e) {
-      // console.error(e);
-    }
-    setCurrentFrame(place);
+    // console.log("here");
+    checkUnsavedFrame(function (res) {
+      // console.log("there");
+      switch (res) {
+        case 1:
+          // console.log(place);
+          try {
+            markSavedFrame(currentFrame);
+            openImage(place);
+          } catch (e) {
+            // console.error(e);
+          }
+          setCurrentFrame(place);
+          break;
+      }
+    });
   });
   return frame;
 }
@@ -1041,6 +1089,7 @@ function createCanvas() {
   removeListeners();
   resetFrames();
   resetLayers();
+  resetSelectionState();
   addDisplayFrame(0);
   setCurrentFrame(0);
   initCanvas("2d", parseInt(pixelByPixel.value));
@@ -1068,20 +1117,25 @@ function getCanvasAndContext(isNew, overlay) {
 }
 
 function submitImages() {
-  if(!checkUnsavedFrame()) return;
-  // var imageBlobs = [];
-  var imageDataURLs = [];
-  framesArray.map(function (imageDataObj, ind) {
-    if(!imageDataObj) return;
-    // console.log("working on saving images");
-    var parsedDataURL = parseImageDataURL(getImageDataURL(objDataToImageData(imageDataObj)));
-    imageDataURLs.push(parsedDataURL);
-    // getImageBlob(function (blob) {
-    //   imageBlobs.push(blob);
-    //   if(endOfArray(framesArray, ind)) sendImageBlobs(imageBlobs);
-    // });
-  });
-  sendImageDataURLs(imageDataURLs);
+  checkUnsavedFrame(function (res) {
+    switch (res) {
+      case 1:
+        // var imageBlobs = [];
+        var imageDataURLs = [];
+        framesArray.map(function (imageDataObj, ind) {
+          if(!imageDataObj) return;
+          // console.log("working on saving images");
+          var parsedDataURL = parseImageDataURL(getImageDataURL(objDataToImageData(imageDataObj)));
+          imageDataURLs.push(parsedDataURL);
+          // getImageBlob(function (blob) {
+          //   imageBlobs.push(blob);
+          //   if(endOfArray(framesArray, ind)) sendImageBlobs(imageBlobs);
+          // });
+        });
+        sendImageDataURLs(imageDataURLs);
+        break;
+    }
+  }, 2);
 }
 
 function sendImageDataURLs(dataURLs) {
@@ -1141,18 +1195,18 @@ function endOfArray(arr, ind) {
   return arr.length - 1 === ind;
 }
 
-function checkUnsavedFrame() {
+function checkUnsavedFrame(cb, buttonCount) {
   if(unsavedFrame) {
-    return confirm("The current frame has not been saved. Are you sure you want to continue?");
+    return userConfirm("The current frame has not been saved. Are you sure you want to continue?", cb, buttonCount);
   }
-  return true;
+  cb(1);
 }
 
-function confirmSelectionMove() {
-  if(selectionState.action === "selected") {
-    return confirm("you have made changes with the selection tool. Would you like to save these changes?");
+function confirmSelectionMove(cb, buttonCount) {
+  if(selectionState.action === "selected" && selectionState.pixelsMoved) {
+    return userConfirm("you have made changes with the selection tool. Would you like to save these changes?", cb, buttonCount);
   }
-  return true;
+  cb(1);
 }
 
 function checkDelete() {
@@ -1204,9 +1258,9 @@ function normalizeMouse(e) {
   var button;
 
   if(e.button === 0 && e.buttons === 0) button = "none";
-  if(e.button === 0 && e.buttons === 1) button = "left";
-  if(e.button === 1 && e.buttons === 4) button = "middle";
-  if(e.button === 2 && e.buttons === 2) button = "right";
+  if(e.button === 0 && e.buttons === 1 || e.button === 0 && e.buttons === 0) button = "left";
+  if(e.button === 1 && e.buttons === 4 || e.button === 1 && e.buttons === 0) button = "middle";
+  if(e.button === 2 && e.buttons === 2 || e.button === 2 && e.buttons === 0) button = "right";
   if(e.button === 0 && e.buttons === 5) button = "left-middle";
   if(e.button === 0 && e.buttons === 3) button = "left-right";
   if(e.button === 1 && e.buttons === 6) button = "middle-right";
@@ -1218,12 +1272,61 @@ function copyObject(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
+function userConfirm(text, res, buttonCount) {
+  if(typeof res !== "function") return console.error("no response function");
+  buttonCount = buttonCount || 3;
+  var background = document.createElement("div");
+  background.className = "overlay-background";
+
+  var box = document.createElement("div");
+  box.className = "dialog-box";
+
+  var dialog = document.createElement("p");
+  dialog.innerText = text;
+  var buttons = document.createElement("div");
+  buttons.className = "buttons";
+
+  var confirm = document.createElement("button");
+  confirm.innerText = "Confirm";
+  confirm.addEventListener("click", function() {
+    res(1, "confirm");
+    deleteSelf();
+  });
+  var deny = document.createElement("button");
+  deny.innerText = "Deny";
+  deny.addEventListener("click", function() {
+    res(2, "deny");
+    deleteSelf();
+  });
+  var cancel = document.createElement("button");
+  cancel.innerText = "Cancel";
+  cancel.addEventListener("click", function() {
+    res(3, "cancel");
+    deleteSelf();
+  });
+
+  box.appendChild(dialog);
+  box.appendChild(buttons);
+  buttons.appendChild(confirm);
+  if(buttonCount >= 2) buttons.appendChild(deny);
+  if(buttonCount >= 3) buttons.appendChild(cancel);
+
+  document.body.appendChild(background);
+  document.body.appendChild(box);
+
+  function deleteSelf() {
+    document.body.removeChild(background);
+    document.body.removeChild(box);
+  }
+}
+
 // buttons events
 document.addEventListener("keydown", function (e) {
   // console.log(e);
   switch (e.key.toLowerCase()) {
     case "e": setTool("eraser"); break;
     case "q": setTool("pencil"); break;
+    case "m": setTool("move"); break;
     case "c": if(e.ctrlKey) clearCanvas(); break;
     case "n": newFrame(e.shiftKey); break;
     case "s": if(!e.ctrlKey) e.shiftKey ? setTool("select") : saveFrame(); break;
