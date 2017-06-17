@@ -124,6 +124,12 @@ body {
   border: 2px dotted black;
 }
 
+#cursor.fill:after {
+  top: -4px;
+  left: -4px;
+  border: 4px solid black;
+}
+
 .tools {}
 
 .brush {
@@ -133,23 +139,17 @@ body {
   background-repeat: no-repeat;
   background-position: center;
 }
-.brush.pencil {
-  background-image: url("./pencil.png");
-}
-.brush.eraser {
-  background-image: url("./eraser.png");
-}
-.brush.select {
-  background-image: url("./select.png");
-}
-.brush.mover {
-  background-image: url("./mover.png");
-}
+.brush.pencil {background-image: url("./pencil.png");}
+.brush.eraser {background-image: url("./eraser.png");}
+.brush.select {background-image: url("./select.png");}
+.brush.mover {background-image: url("./mover.png");}
+.brush.fill {background-image: url("./fill.png");}
 
 .brush-show.pencil ~ .brush.pencil,
 .brush-show.eraser ~ .brush.eraser,
 .brush-show.select ~ .brush.select,
-.brush-show.mover ~ .brush.mover
+.brush-show.mover ~ .brush.mover,
+.brush-show.fill ~ .brush.fill
 {
   box-shadow: 0 0 0 2px rgba(0, 200, 255, 1);
 }

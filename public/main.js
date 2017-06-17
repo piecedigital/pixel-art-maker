@@ -306,6 +306,9 @@ function mouseAction(obj) {
       case "mover":
         if(mouseDown) moveSelection(mouseData);
         break;
+      case "fill":
+        drawFill(mouseData);
+        break;
     }
   }
 
@@ -661,6 +664,103 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
 
   // console.log(selectedFrameData);
   if(!dontChangeData) markUnsavedFrame(currentFrame);
+}
+
+function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
+  // console.log(mouseData);
+  var {
+    left,
+    top,
+    right,
+    bottom,
+    width,
+    height,
+    centerX,
+    centerY,
+    canvas,
+    context: ctx,
+    pixel,
+    color
+  } = mouseData;
+
+  if(Object.prototype.toString.call(canvas) !== "[object HTMLCanvasElement]") {
+    var CnC = getCanvasAndContext();
+    canvas = CnC.canvas;
+    ctx = CnC.context;
+  }
+
+  var layer = copyObject(selectedFrameData[getCurrentLayer()]);
+  var pixel = layer ? layer[makePixelKey(mouseData)] : null;
+  var referencePixel = {
+    centerX: pixel ? pixel.centerX : mouseData.centerX,
+    centerY: pixel ? pixel.centerY : mouseData.centerY,
+    width: pixel ? pixel.width : mouseData.width,
+    height: pixel ? pixel.height : mouseData.height,
+    color: pixel ? pixel.color : null
+  };
+  var pixelsToFill = [], maxRecur = 8*8, recur = 0, t = 3, directions = ["up", "down", "left", "right"];
+
+  pixelsToFill.push(makePixelKey(referencePixel));
+  function branchOut(refPixel) {
+    // console.log(recur);
+    if(recur > maxRecur) return;
+    recur++;
+    var pixelsCaptured = [];
+
+    // directions.slice(0+t,1+t).filter(function (dir) {
+    directions.filter(function (dir) {
+      var data = getPixel(refPixel, dir);
+
+      if(data) {
+        // console.log(data.centerX, data.centerY);
+
+        if(
+          data.centerX > 0 && data.centerY > 0 &&
+          data.centerX < brushoverlay.width && data.centerY < brushoverlay.height
+        ) pixelsCaptured.push(data);
+      }
+    });
+
+    // console.log("captured", pixelsCaptured);
+
+    pixelsCaptured.map(function (data) {
+      if(pixelsToFill.indexOf(makePixelKey(data)) === -1) {
+        pixelsToFill.push(makePixelKey(data));
+        branchOut(data);
+      }
+    });
+  }
+  branchOut(referencePixel);
+  console.log(pixelsToFill);
+}
+
+function getPixel(pixelData, direction) {
+  pixelData = copyObject(pixelData);
+  var diff;
+  switch (direction) {
+    case "up": diff = { centerY: pixelData.centerY - pixelData.height }; break;
+    case "down": diff = { centerY: pixelData.centerY + pixelData.height }; break;
+    case "left": diff = { centerX: pixelData.centerX - pixelData.width }; break;
+    case "right": diff = { centerX: pixelData.centerX + pixelData.width }; break;
+  }
+  var layer = copyObject(selectedFrameData[getCurrentLayer()]);
+  var pixel = layer ? layer[makePixelKey(Object.assign(pixelData, diff))] : null;
+  if(!pixel && pixelData.color === null) pixel = Object.assign({
+    centerX: pixelData.centerX,
+    centerY: pixelData.centerY,
+    width: pixelData.width,
+    height: pixelData.height,
+    color: null
+  }, diff);
+  if(pixel && pixel.color !== pixelData.color) pixel = null;
+
+  return !pixel ? null : {
+    centerX: pixel.centerX,
+    centerY: pixel.centerY,
+    width: pixel.width,
+    height: pixel.height,
+    color: pixel ? pixel.color : null
+  };
 }
 
 function drawTool(data) {
@@ -1351,6 +1451,10 @@ function userConfirm(text, res, buttonCount) {
   }
 }
 
+function makePixelKey(data) {
+  return data.centerX + "_" + data.centerY;
+}
+
 // buttons events
 document.addEventListener("keydown", function (e) {
   // console.log(e);
@@ -1358,9 +1462,10 @@ document.addEventListener("keydown", function (e) {
     case "e": setTool("eraser"); break;
     case "q": setTool("pencil"); break;
     case "m": setTool("move"); break;
+    case "f": setTool("fill"); break;
+    case "s": if(!e.ctrlKey) e.shiftKey ? setTool("select") : saveFrame(); break;
     case "c": if(e.ctrlKey) clearCanvas(); break;
     case "n": newFrame(e.shiftKey); break;
-    case "s": if(!e.ctrlKey) e.shiftKey ? setTool("select") : saveFrame(); break;
     case "[": if(e.ctrlKey) goToFrame(currentFrame-1); break;
     case "]": if(e.ctrlKey) goToFrame(currentFrame+1); break;
   }
