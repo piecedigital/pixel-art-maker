@@ -191,6 +191,7 @@ function mouseGridPosition(e,
   var y = (pixelPlaceH/pixel) * h;
   // console.log(pixelPlaceW, x);
   // console.log(ctx.globalCompositeOperation);
+
   var data = {
     left: x,
     top: y,
@@ -308,6 +309,9 @@ function mouseAction(obj) {
         break;
       case "fill":
         drawFill(mouseData);
+        break;
+      case "eraser":
+        drawPixel(mouseData);
         break;
     }
   }
@@ -634,7 +638,7 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
     // case "select": // TEMPORARY
     case "pencil":
       ctx.globalCompositeOperation = "source-over"
-      ctx.fillStyle = alwaysDraw ? color : colorElement.value;
+      ctx.fillStyle = alwaysDraw ? color || colorElement.value : colorElement.value;
       ctx.fillRect(left, top, width, height);
       // console.log(ctx.globalCompositeOperation);
       selectedFrameData["l" + currentLayer.value] = selectedFrameData[layerKey] || {};
@@ -650,7 +654,7 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
         pixel,
         canvas,
         context: ctx,
-        color: colorElement.value
+        color: ctx.fillStyle
       };
     break;
     case "eraser":
@@ -689,7 +693,8 @@ function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
     ctx = CnC.context;
   }
 
-  var layer = copyObject(selectedFrameData[getCurrentLayer()]);
+  var layerObj = selectedFrameData[getCurrentLayer()];
+  var layer = layerObj ? copyObject(layerObj) : {};
   var pixel = layer ? layer[makePixelKey(mouseData)] : null;
   var referencePixel = {
     centerX: pixel ? pixel.centerX : mouseData.centerX,
@@ -698,7 +703,8 @@ function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
     height: pixel ? pixel.height : mouseData.height,
     color: pixel ? pixel.color : null
   };
-  var pixelsToFill = [], maxRecur = 8*8, recur = 0, t = 3, directions = ["up", "down", "left", "right"];
+  var canvasDimension = pixelByPixel.value;
+  var pixelsToFill = [], maxRecur = canvasDimension*canvasDimension, recur = 0, t = 3, directions = ["up", "down", "left", "right"];
 
   pixelsToFill.push(makePixelKey(referencePixel));
   function branchOut(refPixel) {
@@ -731,7 +737,24 @@ function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
     });
   }
   branchOut(referencePixel);
-  console.log(pixelsToFill);
+  // console.log(pixelsToFill);
+
+  pixelsToFill.map(function (coords) {
+    var data = stripPixelKey(coords);
+    var mgp = mouseGridPosition({
+      offsetX: data.centerX,
+      offsetY: data.centerY
+    }, {
+      w: brushoverlay.width,
+      h: brushoverlay.height,
+      pixel: parseInt(pixelByPixel.value)
+    })
+    var pixelData = Object.assign(mgp, {
+      color: colorElement.value
+    });
+
+    drawPixel(pixelData, false, true);
+  });
 }
 
 function getPixel(pixelData, direction) {
@@ -743,7 +766,7 @@ function getPixel(pixelData, direction) {
     case "left": diff = { centerX: pixelData.centerX - pixelData.width }; break;
     case "right": diff = { centerX: pixelData.centerX + pixelData.width }; break;
   }
-  var layer = copyObject(selectedFrameData[getCurrentLayer()]);
+  var layer = copyObject(selectedFrameData[getCurrentLayer()] || {});
   var pixel = layer ? layer[makePixelKey(Object.assign(pixelData, diff))] : null;
   if(!pixel && pixelData.color === null) pixel = Object.assign({
     centerX: pixelData.centerX,
@@ -1453,6 +1476,14 @@ function userConfirm(text, res, buttonCount) {
 
 function makePixelKey(data) {
   return data.centerX + "_" + data.centerY;
+}
+
+function stripPixelKey(data) {
+  var splitStr = data.split("_");
+  return {
+    centerX: parseInt(splitStr[0]),
+    centerY: parseInt(splitStr[1])
+  }
 }
 
 // buttons events
