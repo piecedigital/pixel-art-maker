@@ -578,7 +578,7 @@ function setPixelsFromSelection(original) {
     });
     resetSelectionState();
   } else {
-    console.log("set new");
+    // console.log("set new");
     // set new
     SCCArr.map(function (coords) {
       delete selectedFrameData[getCurrentLayer()][coords];
@@ -837,7 +837,7 @@ function setTool(toolName) {
   }
 
   function proceed() {
-    console.log("proceed");
+    // console.log("proceed");
     brushes.querySelector(".brush-show").className = "brush-show " + toolName;
     brushoverlay.className = toolName;
     brushTool = toolName;
@@ -1277,7 +1277,7 @@ function submitImages(forPlayback) {
           if(forPlayback) {
             imageDataURLs.push(dataURL);
           } else {
-            var parsedDataURL = parseImageDataURL();
+            var parsedDataURL = parseImageDataURL(dataURL);
             imageDataURLs.push(parsedDataURL);
           }
         });
