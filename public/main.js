@@ -568,7 +568,7 @@ function setPixelsFromSelection(original) {
   var SCMArr = Object.keys(selectionCoordsMoved);
 
   if(original) {
-    console.log("set original");
+    // console.log("set original");
     // erase moved pixels
     SCMArr.map(function (coords) {
       drawPixel(selectionCoordsMoved[coords], true, null, true);
@@ -585,6 +585,13 @@ function setPixelsFromSelection(original) {
       delete selectedFrameData[getCurrentLayer()][coords];
     });
     SCMArr.map(function (coords) {
+      var pixelData = stripPixelKey(coords);
+      if(
+        pixelData.centerX > brushoverlay.width ||
+        pixelData.centerY > brushoverlay.height ||
+        pixelData.centerX < 0 ||
+        pixelData.centerY < 0
+      ) return;
       selectedFrameData[getCurrentLayer()][coords] = selectionCoordsMoved[coords];
     });
     selectionState.data.current = copyObject(selectionState.data.moved);
@@ -670,99 +677,6 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
   if(!dontChangeData) markUnsavedFrame(currentFrame);
 }
 
-// function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
-//   // console.log(mouseData);
-//   var {
-//     left,
-//     top,
-//     right,
-//     bottom,
-//     width,
-//     height,
-//     centerX,
-//     centerY,
-//     canvas,
-//     context: ctx,
-//     pixel,
-//     color
-//   } = mouseData;
-//
-//   if(Object.prototype.toString.call(canvas) !== "[object HTMLCanvasElement]") {
-//     var CnC = getCanvasAndContext();
-//     canvas = CnC.canvas;
-//     ctx = CnC.context;
-//   }
-//
-//   var layerObj = selectedFrameData[getCurrentLayer()];
-//   var layer = layerObj ? copyObject(layerObj) : {};
-//   var pixel = layer ? layer[makePixelKey(mouseData)] : null;
-//   var referencePixel = {
-//     centerX: pixel ? pixel.centerX : mouseData.centerX,
-//     centerY: pixel ? pixel.centerY : mouseData.centerY,
-//     width: pixel ? pixel.width : mouseData.width,
-//     height: pixel ? pixel.height : mouseData.height,
-//     color: pixel ? pixel.color : null
-//   };
-//   var canvasDimension = pixelByPixel.value;
-//   var pixelsToFill = [], maxRecur = canvasDimension*canvasDimension, recur = 0, t = 3, directions = ["up", "down", "left", "right"];
-//
-//   pixelsToFill.push(makePixelKey(referencePixel));
-//   function branchOut(refPixel) {
-//     // console.log(recur);
-//     if(recur > maxRecur) return;
-//     recur++;
-//     var pixelsCaptured = [];
-//
-//     // directions.slice(0+t,1+t).filter(function (dir) {
-//     directions.filter(function (dir) {
-//       var data = getPixel(refPixel, dir);
-//
-//       if(data) {
-//         // console.log(data.centerX, data.centerY);
-//         if(
-//           data.centerX > 0 && data.centerY > 0 &&
-//           data.centerX < brushoverlay.width && data.centerY < brushoverlay.height
-//         ) pixelsCaptured.push(data);
-//       }
-//     });
-//
-//     // console.log("captured", pixelsCaptured);
-//
-//     pixelsCaptured.map(function (data) {
-//       if(pixelsToFill.indexOf(makePixelKey(data)) === -1) {
-//         pixelsToFill.push(makePixelKey(data));
-//         branchOut(data);
-//       }
-//     });
-//   }
-//   branchOut(referencePixel);
-//   // console.log(pixelsToFill);
-//
-//   var stepsPerThousand = 1; // Math.ceil(pixelsToFill.length / 1000);
-//
-//   for (var i = 0; i < stepsPerThousand; i++) {
-//     console.log((i * 1000), (i + 1) * 1000);
-//     setTimeout(function (arr) {
-//       arr.map(function (coords, ind) {
-//         var data = stripPixelKey(coords);
-//         var mgp = mouseGridPosition({
-//           offsetX: data.centerX,
-//           offsetY: data.centerY
-//         }, {
-//           w: brushoverlay.width,
-//           h: brushoverlay.height,
-//           pixel: parseInt(pixelByPixel.value)
-//         })
-//         var pixelData = Object.assign(mgp, {
-//           color: colorElement.value
-//         });
-//
-//         drawPixel(pixelData, false, true);
-//       });
-//     }, 10, pixelsToFill.slice((i * 1000), (i + 1) * 1000));
-//   }
-// }
-
 function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
   // console.log(mouseData);
   var {
@@ -786,8 +700,9 @@ function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
     ctx = CnC.context;
   }
 
-  var layerObj = selectedFrameData[getCurrentLayer()];
-  var layer = layerObj ? copyObject(layerObj) : {};
+  // var layerObj = selectedFrameData[getCurrentLayer()];
+  // var layer = layerObj ? copyObject(layerObj) : {};
+  var layer = selectedFrameData[getCurrentLayer()];
   var pixel = layer ? layer[makePixelKey(mouseData)] : null;
   var referencePixel = {
     centerX: pixel ? pixel.centerX : mouseData.centerX,
@@ -800,35 +715,7 @@ function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
   var pixelsToFill = [], maxRecur = canvasDimension*canvasDimension, recur = 0, t = 3, directions = ["up", "down", "left", "right"];
 
   pixelsToFill.push(makePixelKey(referencePixel));
-  // function branchOut(refPixel) {
-    //   // console.log(recur);
-    //   if(recur > maxRecur) return;
-    //   recur++;
-    //   var pixelsCaptured = [];
-    //
-    //   // directions.slice(0+t,1+t).filter(function (dir) {
-    //   directions.filter(function (dir) {
-    //     var data = getPixel(refPixel, dir);
-    //
-    //     if(data) {
-    //       // console.log(data.centerX, data.centerY);
-    //       if(
-    //         data.centerX > 0 && data.centerY > 0 &&
-    //         data.centerX < brushoverlay.width && data.centerY < brushoverlay.height
-    //       ) pixelsCaptured.push(data);
-    //     }
-    //   });
-    //
-    //   // console.log("captured", pixelsCaptured);
-    //
-    //   pixelsCaptured.map(function (data) {
-    //     if(pixelsToFill.indexOf(makePixelKey(data)) === -1) {
-    //       pixelsToFill.push(makePixelKey(data));
-    //       branchOut(data);
-    //     }
-    //   });
-    // }
-    // branchOut(referencePixel);
+
   var branches = [referencePixel];
   // console.log(branches);
   setTimeout(function () {
@@ -857,13 +744,13 @@ function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
             if(pixelsToFill.indexOf(makePixelKey(data)) === -1) {
               pixelsToFill.push(makePixelKey(data));
               branches.push(data);
+              recur++;
             }
           });
 
           branches.splice(branchIndex, 1);
           i--;
-          console.log(recur);
-          recur++;
+          // console.log(recur);
         };
       } while (recur <= maxRecur && branches.length > 0);
       console.log("pixelsToFill", pixelsToFill);
