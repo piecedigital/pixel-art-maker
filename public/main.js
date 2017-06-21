@@ -110,7 +110,7 @@ function initCanvas(contextValue, pixel) {
   };
   brushoverlay.addEventListener("click", listenerFunctions.click);
 
-  listenerFunctions.press = function (e) {
+  listenerFunctions.mousedown = function (e) {
     mouseAction({
       e,
       once: "press",
@@ -119,9 +119,9 @@ function initCanvas(contextValue, pixel) {
       h
     });
   };
-  brushoverlay.addEventListener("mousedown", listenerFunctions.press);
+  brushoverlay.addEventListener("mousedown", listenerFunctions.mousedown);
 
-  listenerFunctions.release = function (e) {
+  listenerFunctions.mouseup = function (e) {
     mouseAction({
       e,
       once: "release",
@@ -130,7 +130,7 @@ function initCanvas(contextValue, pixel) {
       h
     });
   };
-  brushoverlay.addEventListener("mouseup", listenerFunctions.release);
+  brushoverlay.addEventListener("mouseup", listenerFunctions.mouseup);
 
   listenerFunctions.mousemove = function(e) {
     mouseAction({
@@ -250,6 +250,9 @@ function mouseAction(obj) {
           case "mover":
             selectionState.lastMousePos = newMouseData;
             break;
+          case "fill":
+            drawFill(mouseData);
+            break;
         }
       }
 
@@ -307,9 +310,6 @@ function mouseAction(obj) {
       case "mover":
         if(mouseDown) moveSelection(mouseData);
         break;
-      case "fill":
-        drawFill(mouseData);
-        break;
       case "eraser":
         drawPixel(mouseData);
         break;
@@ -334,7 +334,8 @@ function getSelection(obj) {
     h
   } = obj;
 
-  var maxTicks = 8*8, tick = 0, blocks = [], lastPoint = null, reachedEnd = false, xPoint, yPoint, xPointEnd, yPointEnd, xNeg;
+  var pbp = parseInt(pixelByPixel.value);
+  var maxTicks = pbp*pbp, tick = 0, blocks = [], lastPoint = null, reachedEnd = false, xPoint, yPoint, xPointEnd, yPointEnd, xNeg;
 
   while (tick < maxTicks && !reachedEnd) {
     // console.log(reachedEnd);
@@ -605,7 +606,6 @@ function resetSelectionState() {
 }
 
 function drawPixel (data, dontChangeData, alwaysDraw, erase) {
-  // console.log(data);
   var {
     left,
     top,
@@ -670,6 +670,99 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
   if(!dontChangeData) markUnsavedFrame(currentFrame);
 }
 
+// function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
+//   // console.log(mouseData);
+//   var {
+//     left,
+//     top,
+//     right,
+//     bottom,
+//     width,
+//     height,
+//     centerX,
+//     centerY,
+//     canvas,
+//     context: ctx,
+//     pixel,
+//     color
+//   } = mouseData;
+//
+//   if(Object.prototype.toString.call(canvas) !== "[object HTMLCanvasElement]") {
+//     var CnC = getCanvasAndContext();
+//     canvas = CnC.canvas;
+//     ctx = CnC.context;
+//   }
+//
+//   var layerObj = selectedFrameData[getCurrentLayer()];
+//   var layer = layerObj ? copyObject(layerObj) : {};
+//   var pixel = layer ? layer[makePixelKey(mouseData)] : null;
+//   var referencePixel = {
+//     centerX: pixel ? pixel.centerX : mouseData.centerX,
+//     centerY: pixel ? pixel.centerY : mouseData.centerY,
+//     width: pixel ? pixel.width : mouseData.width,
+//     height: pixel ? pixel.height : mouseData.height,
+//     color: pixel ? pixel.color : null
+//   };
+//   var canvasDimension = pixelByPixel.value;
+//   var pixelsToFill = [], maxRecur = canvasDimension*canvasDimension, recur = 0, t = 3, directions = ["up", "down", "left", "right"];
+//
+//   pixelsToFill.push(makePixelKey(referencePixel));
+//   function branchOut(refPixel) {
+//     // console.log(recur);
+//     if(recur > maxRecur) return;
+//     recur++;
+//     var pixelsCaptured = [];
+//
+//     // directions.slice(0+t,1+t).filter(function (dir) {
+//     directions.filter(function (dir) {
+//       var data = getPixel(refPixel, dir);
+//
+//       if(data) {
+//         // console.log(data.centerX, data.centerY);
+//         if(
+//           data.centerX > 0 && data.centerY > 0 &&
+//           data.centerX < brushoverlay.width && data.centerY < brushoverlay.height
+//         ) pixelsCaptured.push(data);
+//       }
+//     });
+//
+//     // console.log("captured", pixelsCaptured);
+//
+//     pixelsCaptured.map(function (data) {
+//       if(pixelsToFill.indexOf(makePixelKey(data)) === -1) {
+//         pixelsToFill.push(makePixelKey(data));
+//         branchOut(data);
+//       }
+//     });
+//   }
+//   branchOut(referencePixel);
+//   // console.log(pixelsToFill);
+//
+//   var stepsPerThousand = 1; // Math.ceil(pixelsToFill.length / 1000);
+//
+//   for (var i = 0; i < stepsPerThousand; i++) {
+//     console.log((i * 1000), (i + 1) * 1000);
+//     setTimeout(function (arr) {
+//       arr.map(function (coords, ind) {
+//         var data = stripPixelKey(coords);
+//         var mgp = mouseGridPosition({
+//           offsetX: data.centerX,
+//           offsetY: data.centerY
+//         }, {
+//           w: brushoverlay.width,
+//           h: brushoverlay.height,
+//           pixel: parseInt(pixelByPixel.value)
+//         })
+//         var pixelData = Object.assign(mgp, {
+//           color: colorElement.value
+//         });
+//
+//         drawPixel(pixelData, false, true);
+//       });
+//     }, 10, pixelsToFill.slice((i * 1000), (i + 1) * 1000));
+//   }
+// }
+
 function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
   // console.log(mouseData);
   var {
@@ -707,57 +800,106 @@ function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
   var pixelsToFill = [], maxRecur = canvasDimension*canvasDimension, recur = 0, t = 3, directions = ["up", "down", "left", "right"];
 
   pixelsToFill.push(makePixelKey(referencePixel));
-  function branchOut(refPixel) {
-    // console.log(recur);
-    if(recur > maxRecur) return;
-    recur++;
-    var pixelsCaptured = [];
+  // function branchOut(refPixel) {
+    //   // console.log(recur);
+    //   if(recur > maxRecur) return;
+    //   recur++;
+    //   var pixelsCaptured = [];
+    //
+    //   // directions.slice(0+t,1+t).filter(function (dir) {
+    //   directions.filter(function (dir) {
+    //     var data = getPixel(refPixel, dir);
+    //
+    //     if(data) {
+    //       // console.log(data.centerX, data.centerY);
+    //       if(
+    //         data.centerX > 0 && data.centerY > 0 &&
+    //         data.centerX < brushoverlay.width && data.centerY < brushoverlay.height
+    //       ) pixelsCaptured.push(data);
+    //     }
+    //   });
+    //
+    //   // console.log("captured", pixelsCaptured);
+    //
+    //   pixelsCaptured.map(function (data) {
+    //     if(pixelsToFill.indexOf(makePixelKey(data)) === -1) {
+    //       pixelsToFill.push(makePixelKey(data));
+    //       branchOut(data);
+    //     }
+    //   });
+    // }
+    // branchOut(referencePixel);
+  var branches = [referencePixel];
+  // console.log(branches);
+  setTimeout(function () {
+    new Promise(function(resolve, reject) {
+      do {
+        for(var i = 0; i < branches.length; i++) {
+          var refPixel = branches[i], branchIndex = i;
+          var pixelsCaptured = [];
+          // directions.slice(0+t,1+t).filter(function (dir) {
+          directions.filter(function (dir) {
+            var data = getPixel(layer, refPixel, dir);
 
-    // directions.slice(0+t,1+t).filter(function (dir) {
-    directions.filter(function (dir) {
-      var data = getPixel(refPixel, dir);
+            if(data) {
+              // console.log(data.centerX, data.centerY);
+              if(
+                data.centerX > 0 && data.centerY > 0 &&
+                data.centerX < brushoverlay.width && data.centerY < brushoverlay.height
+              ) pixelsCaptured.push(data);
+            }
+          });
 
-      if(data) {
-        // console.log(data.centerX, data.centerY);
+          // if(pixelsCaptured.length < 4) console.log("not getting everything");
+          // console.log("captured", pixelsCaptured);
 
-        if(
-          data.centerX > 0 && data.centerY > 0 &&
-          data.centerX < brushoverlay.width && data.centerY < brushoverlay.height
-        ) pixelsCaptured.push(data);
-      }
-    });
+          pixelsCaptured.map(function (data) {
+            if(pixelsToFill.indexOf(makePixelKey(data)) === -1) {
+              pixelsToFill.push(makePixelKey(data));
+              branches.push(data);
+            }
+          });
 
-    // console.log("captured", pixelsCaptured);
-
-    pixelsCaptured.map(function (data) {
-      if(pixelsToFill.indexOf(makePixelKey(data)) === -1) {
-        pixelsToFill.push(makePixelKey(data));
-        branchOut(data);
-      }
-    });
-  }
-  branchOut(referencePixel);
-  // console.log(pixelsToFill);
-
-  pixelsToFill.map(function (coords) {
-    var data = stripPixelKey(coords);
-    var mgp = mouseGridPosition({
-      offsetX: data.centerX,
-      offsetY: data.centerY
-    }, {
-      w: brushoverlay.width,
-      h: brushoverlay.height,
-      pixel: parseInt(pixelByPixel.value)
+          branches.splice(branchIndex, 1);
+          i--;
+          console.log(recur);
+          recur++;
+        };
+      } while (recur <= maxRecur && branches.length > 0);
+      console.log("pixelsToFill", pixelsToFill);
+      console.log("branches", branches);
+      resolve();
     })
-    var pixelData = Object.assign(mgp, {
-      color: colorElement.value
-    });
+    .then(function () {
+      var stepsPerThousand = Math.ceil(pixelsToFill.length / 1000);
 
-    drawPixel(pixelData, false, true);
-  });
+      for (var i = 0; i < stepsPerThousand; i++) {
+        console.log((i * 1000), (i + 1) * 1000);
+        setTimeout(function (arr) {
+          arr.map(function (coords, ind) {
+            var data = stripPixelKey(coords);
+            var mgp = mouseGridPosition({
+              offsetX: data.centerX,
+              offsetY: data.centerY
+            }, {
+              w: brushoverlay.width,
+              h: brushoverlay.height,
+              pixel: parseInt(pixelByPixel.value)
+            })
+            var pixelData = Object.assign(mgp, {
+              color: colorElement.value
+            });
+
+            drawPixel(pixelData, false, true);
+          });
+        }, 10, pixelsToFill.slice((i * 1000), (i + 1) * 1000));
+      }
+    })
+    .catch(e => console.error(e));
+  }, 10);
 }
 
-function getPixel(pixelData, direction) {
+function getPixel(layer, pixelData, direction) {
   pixelData = copyObject(pixelData);
   var diff;
   switch (direction) {
@@ -766,16 +908,21 @@ function getPixel(pixelData, direction) {
     case "left": diff = { centerX: pixelData.centerX - pixelData.width }; break;
     case "right": diff = { centerX: pixelData.centerX + pixelData.width }; break;
   }
-  var layer = copyObject(selectedFrameData[getCurrentLayer()] || {});
+  // var layer = copyObject(selectedFrameData[getCurrentLayer()] || {});
   var pixel = layer ? layer[makePixelKey(Object.assign(pixelData, diff))] : null;
-  if(!pixel && pixelData.color === null) pixel = Object.assign({
-    centerX: pixelData.centerX,
-    centerY: pixelData.centerY,
-    width: pixelData.width,
-    height: pixelData.height,
-    color: null
-  }, diff);
-  if(pixel && pixel.color !== pixelData.color) pixel = null;
+  if(pixel && pixel.color !== pixelData.color) {
+    pixel = null;
+  } else
+  if(!pixel && pixelData.color === null) {
+    pixel = Object.assign({
+      centerX: pixelData.centerX,
+      centerY: pixelData.centerY,
+      width: pixelData.width,
+      height: pixelData.height,
+      color: null
+    }, diff);
+  }
+  // console.log(pixel);
 
   return !pixel ? null : {
     centerX: pixel.centerX,
@@ -1467,6 +1614,7 @@ function userConfirm(text, res, buttonCount) {
 
   document.body.appendChild(background);
   document.body.appendChild(box);
+  confirm.focus();
 
   function deleteSelf() {
     document.body.removeChild(background);
