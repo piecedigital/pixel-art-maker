@@ -1326,6 +1326,27 @@ function submitImages(forPlayback) {
   })();
 }
 
+function saveRaw() {
+  new Promise(function(resolve, reject) {
+    checkUnsavedFrame(function (res) {
+      switch (res) {
+        case 1:
+          resolve();
+          break;
+      }
+    }, 2);
+  })
+  .then(function () {
+    var string = JSON.stringify(framesArray);
+    var blob = new Blob([string], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.setAttribute("download", "pixel-box-gif.json");
+    a.click();
+  })
+  .catch(e => console.error(e));
+}
+
 function sendImageDataURLs(dataURLs) {
   // console.log("image data URLs");
   // console.log(dataURLs);
