@@ -77,6 +77,15 @@ var makeCanvas = function (overlay, w, h, layer, newCanvas) {
 
 var colorElement = document.querySelector(".color");
 
+loadProjectInput.onchange = function (e) {
+  var files = e.target.files;
+  var fr = new FileReader();
+  fr.onload = function () {
+    openRaw(fr.result);
+  }
+  fr.readAsDataURL(files[0]);
+};
+
 function initCanvas(contextValue, pixel) {
   var //pixel = 32,
   editorDimensionMultiplier = (8*8) * 10,
@@ -975,11 +984,6 @@ function markUnsavedFrame(frame) {
 }
 
 function openImage(place) {
-  // var layers = Object.keys(framesArray[place]);
-  // console.log("open:", place, "|", "layers:", framesArray[place]);
-  // var len = layers.length;
-  // var len = layerCount;
-
   var canvas, ctx;
   if(framesArray[place]) {
     var layers = objDataToImageData(framesArray[place], true);
@@ -1359,6 +1363,9 @@ function openRaw(data) {
         case 1:
           resolve();
           break;
+        case 2:
+          loadProjectInput.value = "";
+          break;
       }
     }, 2);
   })
@@ -1375,15 +1382,6 @@ function openRaw(data) {
   })
   .catch(e => console.error(e));
 }
-
-loadProjectInput.onchange = function (e) {
-  var files = e.target.files;
-  var fr = new FileReader();
-  fr.onload = function () {
-    openRaw(fr.result);
-  }
-  fr.readAsDataURL(files[0]);
-};
 
 function loadProject(e) {
   loadProjectInput.click();
