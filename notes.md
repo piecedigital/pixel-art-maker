@@ -1,4 +1,3 @@
-!!!- Fill tool! Probably gonna need recursion (yep)
 - Better UI for layers
   - able to reorder layers
   - able to name layers

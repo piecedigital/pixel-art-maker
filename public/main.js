@@ -13,7 +13,8 @@ var framerate = tools.getElementsByClassName("framerate")[0];
 var canvasLayers = workArea.querySelector(".canvas-layers");
 // var canvasLayersTabs = workArea.querySelector(".canvas-layers-tabs");
 var currentLayer = workArea.querySelector(".current-layer");
-var totalLayersCounter = workArea.querySelector(".total-layers")
+var totalLayersCounter = workArea.querySelector(".total-layers");
+var loadProjectInput = workArea.querySelector(".load-project");
 
 // variables
 var listenerFunctions = {},
@@ -982,12 +983,16 @@ function openImage(place) {
   var canvas, ctx;
   if(framesArray[place]) {
     var layers = objDataToImageData(framesArray[place], true);
-    // console.log("layers", layers);
-    // console.log(layers);
-    for (var ind = 0; ind < layerCount; ind++) {
+    console.log("layers", layers);
+    // for (var ind = 0; ind < layerCount; ind++) {
+    for (var ind = 0; ind < layers.length; ind++) {
       var imageData = layers[ind];
       // console.log("image data", imageData);
       canvas = window["canvas" + ind];
+      if(!canvas) {
+        newLayer();
+        canvas = window["canvas" + ind];
+      }
       ctx = canvas.getContext("2d");
       // if the image data is available, put it
       if(imageData) {
@@ -1345,6 +1350,43 @@ function saveRaw() {
     a.click();
   })
   .catch(e => console.error(e));
+}
+
+function openRaw(data) {
+  new Promise(function(resolve, reject) {
+    checkUnsavedFrame(function (res) {
+      switch (res) {
+        case 1:
+          resolve();
+          break;
+      }
+    }, 2);
+  })
+  .then(function () {
+    createCanvas();
+    var strippedData = data.split(",").pop();
+    var convertedData = atob(strippedData);
+    var objectData = JSON.parse(convertedData);
+
+    objectData.map(function (frame) {
+      selectedFrameData = frame;
+      newFrame();
+    })
+  })
+  .catch(e => console.error(e));
+}
+
+loadProjectInput.onchange = function (e) {
+  var files = e.target.files;
+  var fr = new FileReader();
+  fr.onload = function () {
+    openRaw(fr.result);
+  }
+  fr.readAsDataURL(files[0]);
+};
+
+function loadProject(e) {
+  loadProjectInput.click();
 }
 
 function sendImageDataURLs(dataURLs) {

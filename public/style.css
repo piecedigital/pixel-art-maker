@@ -12,6 +12,10 @@ body {
   transition: .2s all ease;
 }
 
+.invisible {
+  display: none;
+}
+
 .divider {
   height: 2px;
   width: 100%;
