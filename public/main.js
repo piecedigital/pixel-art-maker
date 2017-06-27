@@ -27,6 +27,7 @@ var listenerFunctions = {},
   playbackInterval = null,
   unsavedFrame = false,
   mouseDown = false,
+  projectSaved = true,
   selectionState = {
     action: null, // null, selecting, selected
     startPoint: {}, // start selection
@@ -644,6 +645,7 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
     ctx = CnC.context;
   }
 
+  markUnsavedProject();
   // console.log(canvas);
   var layerKey = "l" + currentLayer.value;
   var drawStyle = alwaysDraw ? "pencil" : brushTool;
@@ -684,7 +686,10 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
   }
 
   // console.log(selectedFrameData);
-  if(!dontChangeData) markUnsavedFrame(currentFrame);
+  if(!dontChangeData) {
+    markUnsavedProject();
+    markUnsavedFrame(currentFrame);
+  }
 }
 
 function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
@@ -981,6 +986,14 @@ function markUnsavedFrame(frame) {
   // }
   displayFrame.removeClass("saved");
   displayFrame.addClass("unsaved");
+}
+
+function markSavedProject(frame) {
+  savedProject = true;
+}
+
+function markUnsavedProject(frame) {
+  unsavedFrame = false;
 }
 
 function openImage(place) {
