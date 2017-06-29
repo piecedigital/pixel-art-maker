@@ -193,12 +193,8 @@ function appendNewLayerOption() {
     var startLayer = layerUIReferences[place];
     var targetLayer = layerUIReferences[swapPlace];
 
-    switch (dir) {
-      case "up":
-        layerUIReferences.splice(swapPlace, 1, startLayer);
-        layerUIReferences.splice(place, 1, targetLayer);
-        break;
-    }
+    layerUIReferences.splice(swapPlace, 1, startLayer);
+    layerUIReferences.splice(place, 1, targetLayer);
   }
 }
 
