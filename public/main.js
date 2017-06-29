@@ -28,6 +28,7 @@ var listenerFunctions = {},
   unsavedFrame = false,
   mouseDown = false,
   projectSaved = true,
+  layerUIReferences = [];
   selectionState = {
     action: null, // null, selecting, selected
     startPoint: {}, // start selection
@@ -164,11 +165,41 @@ function appendNewCanvasLayer(w, h) {
 }
 
 function appendNewLayerOption() {
-  var opt = document.createElement("option");
+  var layer = document.createElement("div");
+  var moveUp = document.createElement("div");
+  var moveDown = document.createElement("div");
+
+  moveUp.addEventListener("click", movePlace.bind(this, "up"))
+  moveDown.addEventListener("click", movePlace.bind(this, "down"))
+  moveUp.innerText = "UP";
+  moveDown.innerText = "DOWN";
+
   var value = document.querySelectorAll(".canvas").length;
-  opt.value = value;
-  opt.innerText = value+1;
-  currentLayer.appendChild(opt);
+  layer.value = value;
+  layer.innerText = value+1;
+
+  currentLayer.appendChild(layer);
+  layerUIReferences.push(layer);
+
+  console.log(layerUIReferences.indexOf(layer));
+
+  function movePlace(dir) {
+    var place = layerUIReferences.indexOf(layer);
+    console.log(place);
+    if(place < 0) return console.error("not finding correct reference");
+    var swapPlace = place + (dir === "up" ? -1 : dir === "down" ? 1 : 0);
+    if(swapPlace < 0 || swapPlace >= layerUIReferences.length) console.error("at start or end. can not swap");
+
+    var startLayer = layerUIReferences[place];
+    var targetLayer = layerUIReferences[swapPlace];
+
+    switch (dir) {
+      case "up":
+        layerUIReferences.splice(swapPlace, 1, startLayer);
+        layerUIReferences.splice(place, 1, targetLayer);
+        break;
+    }
+  }
 }
 
 function newLayer() {
@@ -572,6 +603,11 @@ function moveSelection(mouseData) {
   selectionState.pixelsMoved = true;
 }
 
+function copySelected() {
+  console.log("this should copy stuff");
+  console.log(selectionState);
+}
+
 function setPixelsFromSelection(original) {
   var selectionCoordsCurrent = selectionState.data.current;
   var SCCArr = Object.keys(selectionCoordsCurrent);
@@ -896,7 +932,7 @@ function setTool(toolName) {
 }
 
 function clearCanvas(overlay, full) {
-  console.log("clearing canvas");
+  // console.log("clearing canvas");
   // get canvas
   var ctx, ctxArr = [];
 
@@ -909,9 +945,9 @@ function clearCanvas(overlay, full) {
     ctx = window["canvas" + currentLayer.value].getContext("2d");
     ctxArr.push(ctx);
   }
-  // console.log("clear", canvas);
   // erase
-  ctxArr.map(ctx => {
+  ctxArr.map((ctx, ind) => {
+    console.log(ind);
     ctx.globalCompositeOperation = "destination-out"
     ctx.fillStyle = "rgba(255,255,255,1)";
     ctx.fillRect(0, 0, brushoverlay.width, brushoverlay.height);
@@ -997,12 +1033,14 @@ function markUnsavedProject(frame) {
 }
 
 function openImage(place) {
+  clearCanvas(null, true);
   var canvas, ctx;
   if(framesArray[place]) {
     var layers = objDataToImageData(framesArray[place], true);
-    console.log("layers", layers);
+    // console.log("layers", layers);
+    var longest = Math.max(layers.length, layerCount);
     // for (var ind = 0; ind < layerCount; ind++) {
-    for (var ind = 0; ind < layers.length; ind++) {
+    for (var ind = 0; ind < longest; ind++) {
       var imageData = layers[ind];
       // console.log("image data", imageData);
       canvas = window["canvas" + ind];
@@ -1604,7 +1642,7 @@ document.addEventListener("keydown", function (e) {
     case "m": setTool("move"); break;
     case "f": setTool("fill"); break;
     case "s": if(!e.ctrlKey) e.shiftKey ? setTool("select") : saveFrame(); break;
-    case "c": if(e.ctrlKey) clearCanvas(); break;
+    case "c": if(e.ctrlKey && e.shiftKey) { clearCanvas(); }; if(e.ctrlKey) { copySelected(); } break;
     case "n": newFrame(e.shiftKey); break;
     case "[": if(e.ctrlKey) goToFrame(currentFrame-1); break;
     case "]": if(e.ctrlKey) goToFrame(currentFrame+1); break;

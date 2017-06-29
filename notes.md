@@ -1,3 +1,5 @@
 - Better UI for layers
   - able to reorder layers
   - able to name layers
+- Ability to copy selection
+- Ability to duplicate whole frames paste them
