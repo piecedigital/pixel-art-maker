@@ -97,7 +97,7 @@ function initCanvas(contextValue, pixel) {
   if(typeof contextValue !== "string") return;// console.error("2nd argument needs to be a string denoting a 2d or 3d context of the canvas");
 
   var brushoverlay = makeCanvas(true, w, h);
-  newLayer();
+  newLayer(true);
 
   // set the default values for the cursor so it starts neat
   drawTool(
@@ -164,10 +164,17 @@ function appendNewCanvasLayer(w, h) {
   return c;
 }
 
-function appendNewLayerOption() {
+function appendNewLayerOption(firstSelect) {
   var layer = document.createElement("div");
+  var radio = document.createElement("input");
+  var layerName = document.createElement("span");
+  var arrowHolder = document.createElement("div");
   var moveUp = document.createElement("div");
   var moveDown = document.createElement("div");
+
+  radio.type = "radio";
+  radio.name = "layers";
+  if(firstSelect) radio.checked = true;
 
   moveUp.addEventListener("click", movePlace.bind(this, "up"))
   moveDown.addEventListener("click", movePlace.bind(this, "down"))
@@ -176,37 +183,78 @@ function appendNewLayerOption() {
 
   var value = document.querySelectorAll(".canvas").length;
   layer.value = value;
-  layer.innerText = value+1;
+  layerName.innerText = "layer" + value;
 
+  layer.appendChild(radio);
+  layer.appendChild(layerName);
+  arrowHolder.appendChild(moveUp);
+  arrowHolder.appendChild(moveDown);
+  layer.appendChild(arrowHolder);
   currentLayer.appendChild(layer);
   layerUIReferences.push(layer);
 
-  console.log(layerUIReferences.indexOf(layer));
+  // console.log(layerUIReferences.indexOf(layer));
 
   function movePlace(dir) {
     var place = layerUIReferences.indexOf(layer);
     console.log(place);
-    if(place < 0) return console.error("not finding correct reference");
+    if(place < 0) return console.warn("not finding correct reference");
     var swapPlace = place + (dir === "up" ? -1 : dir === "down" ? 1 : 0);
-    if(swapPlace < 0 || swapPlace >= layerUIReferences.length) console.error("at start or end. can not swap");
+    if(swapPlace < 0 || swapPlace >= layerUIReferences.length) return console.warn("at start or end. can not swap");
 
     var startLayer = layerUIReferences[place];
     var targetLayer = layerUIReferences[swapPlace];
 
     layerUIReferences.splice(swapPlace, 1, startLayer);
     layerUIReferences.splice(place, 1, targetLayer);
+
+    switch (dir) {
+      case "up": currentLayer.insertBefore(startLayer, targetLayer); break;
+      case "down": currentLayer.insertBefore(startLayer, targetLayer.nextSibling); break;
+    }
+
+    swapLayerData({
+      [place]: swapPlace,
+      [swapPlace]: place
+    });
   }
 }
 
-function newLayer() {
+function swapLayerData(obj) {
+  var firstPlaceStart, firstPlaceEnd, secondPlaceStart, secondPlaceEnd;
+
+  var keys = Object.keys(obj);
+  firstPlaceStart = keys[0];
+  firstPlaceEnd = obj[firstPlaceStart];
+
+  secondPlaceStart = keys[0];
+  secondPlaceEnd = obj[secondPlaceStart];
+
+  for (var i = 0; i < framesArray.length; i++) {
+    var frameData = framesArray[i];
+    var frameDataCopy = copyObject(frameData);
+    console.log(frameDataCopy);
+  }
+}
+
+function newLayer(firstSelect) {
   layerCount++;
   totalLayersCounter.innerText = layerCount;
-  appendNewLayerOption();
+  appendNewLayerOption(firstSelect);
   appendNewCanvasLayer(brushoverlay.width, brushoverlay.height);
 }
 
-function getCurrentLayer() {
-  return "l" + currentLayer.value;
+function getCurrentLayer(numberOnly) {
+  var layer;
+  for(i = 0; i < layerUIReferences.length; i++) {
+    var elem = layerUIReferences[i].querySelector("input");
+    // console.log(elem, elem.checked);
+    if(elem.checked) {
+      layer = i;
+      break;
+    }
+  }
+  return numberOnly ? layer : "l" + layer;
 }
 
 function mouseGridPosition(e,
@@ -679,7 +727,7 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
 
   markUnsavedProject();
   // console.log(canvas);
-  var layerKey = "l" + currentLayer.value;
+  var layerKey = getCurrentLayer();
   var drawStyle = alwaysDraw ? "pencil" : brushTool;
   drawStyle = erase ? "eraser" : drawStyle;
 
@@ -692,7 +740,7 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
       ctx.fillStyle = alwaysDraw ? color || colorElement.value : colorElement.value;
       ctx.fillRect(left, top, width, height);
       // console.log(ctx.globalCompositeOperation);
-      selectedFrameData["l" + currentLayer.value] = selectedFrameData[layerKey] || {};
+      selectedFrameData[layerKey] = selectedFrameData[layerKey] || {};
       if(!dontChangeData) selectedFrameData[layerKey][centerX + "_" + centerY] = {
         top,
         right,
@@ -712,7 +760,7 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
       ctx.globalCompositeOperation = "destination-out"
       ctx.fillStyle = "rgba(255,255,255,1)";
       ctx.fillRect(left, top, width, height);
-      selectedFrameData["l" + currentLayer.value] = selectedFrameData[layerKey] || {};
+      selectedFrameData[getCurrentLayer()] = selectedFrameData[layerKey] || {};
       if(!dontChangeData) delete selectedFrameData[layerKey][centerX + "_" + centerY];
     break;
   }
@@ -938,7 +986,7 @@ function clearCanvas(overlay, full) {
       ctxArr.push(ctx);
     }
   } else {
-    ctx = window["canvas" + currentLayer.value].getContext("2d");
+    ctx = window["canvas" + getCurrentLayer()].getContext("2d");
     ctxArr.push(ctx);
   }
   // erase
@@ -975,7 +1023,7 @@ function setCurrentFrame(frame) {
 }
 
 function setLayerFrame(layer) {
-  currentLayer.value = layer;
+  getCurrentLayer() = layer;
 }
 
 function storeImageData() {
@@ -1236,7 +1284,7 @@ function resetFrames() {
 
 function resetLayers() {
   // reset select element
-  currentLayer.value = 0;
+  // getCurrentLayer() = 0;
   currentLayer.innerHTML = "";
   // reset cavas containment element
   canvasLayers.innerHTML = "";
@@ -1317,7 +1365,6 @@ function createCanvas() {
   // console.log(parseInt(pixelByPixel.value));
   selectedFrameData = null;
   selectedFrameData = {};
-  currentLayer.value = 0;
   layerCount = 0;
   framesArray = [],
   currentFrame = 0,
@@ -1344,7 +1391,7 @@ for(var i = 1; i <= 16; i++) {
 function getCanvasAndContext(isNew, overlay) {
   // isNew - if true, returns a new canvas
   // ovelay - if true, returns the overlay canvas
-  var thisCanvas = overlay ? brushoverlay : window["canvas" + currentLayer.value];
+  var thisCanvas = overlay ? brushoverlay : window["canvas" + getCurrentLayer(true)];
   var tempCanvas = isNew ? makeCanvas(overlay, brushoverlay.width, brushoverlay.height, null, true) : thisCanvas;
   // console.log(tempCanvas);
   var ctx = tempCanvas.getContext("2d");
