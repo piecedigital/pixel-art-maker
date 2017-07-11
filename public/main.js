@@ -1361,6 +1361,9 @@ function resetLayers() {
   currentLayer.innerHTML = "";
   // reset cavas containment element
   canvasLayers.innerHTML = "";
+  // reset layer reference array
+  layerUIReferences = null;
+  layerUIReferences = [];
 }
 
 var playbackOptions;
