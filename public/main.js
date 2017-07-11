@@ -196,27 +196,45 @@ function appendNewLayerOption(firstSelect) {
   // console.log(layerUIReferences.indexOf(layer));
 
   function movePlace(dir) {
-    var place = layerUIReferences.indexOf(layer);
-    console.log(place);
-    if(place < 0) return console.warn("not finding correct reference");
-    var swapPlace = place + (dir === "up" ? -1 : dir === "down" ? 1 : 0);
-    if(swapPlace < 0 || swapPlace >= layerUIReferences.length) return console.warn("at start or end. can not swap");
-
-    var startLayer = layerUIReferences[place];
-    var targetLayer = layerUIReferences[swapPlace];
-
-    layerUIReferences.splice(swapPlace, 1, startLayer);
-    layerUIReferences.splice(place, 1, targetLayer);
-
-    switch (dir) {
-      case "up": currentLayer.insertBefore(startLayer, targetLayer); break;
-      case "down": currentLayer.insertBefore(startLayer, targetLayer.nextSibling); break;
-    }
-
-    swapLayerData({
-      [place]: swapPlace,
-      [swapPlace]: place
+    confirmSelectionMove(function (res) {
+      switch (res) {
+        case 1:
+        setPixelsFromSelection();
+        resetSelectionState();
+        setTool(brushTool === "mover" ? "select" : brushTool);
+        proceed();
+        break;
+        case 2:
+        resetSelectionState();
+        setTool(brushTool === "mover" ? "select" : brushTool);
+        proceed();
+        break;
+      }
     });
+
+    function proceed() {
+      var place = layerUIReferences.indexOf(layer);
+      // console.log(place);
+      if(place < 0) return console.warn("not finding correct reference");
+      var swapPlace = place + (dir === "up" ? -1 : dir === "down" ? 1 : 0);
+      if(swapPlace < 0 || swapPlace >= layerUIReferences.length) return console.warn("at start or end. can not swap");
+
+      var startLayer = layerUIReferences[place];
+      var targetLayer = layerUIReferences[swapPlace];
+
+      layerUIReferences.splice(swapPlace, 1, startLayer);
+      layerUIReferences.splice(place, 1, targetLayer);
+
+      switch (dir) {
+        case "up": currentLayer.insertBefore(startLayer, targetLayer); break;
+        case "down": currentLayer.insertBefore(startLayer, targetLayer.nextSibling); break;
+      }
+
+      swapLayerData({
+        [place]: swapPlace,
+        [swapPlace]: place
+      });
+    }
   }
 }
 
@@ -232,9 +250,8 @@ function swapLayerData(obj) {
   secondPlaceEnd = obj[secondPlaceStart];
 
   (function () {
-    for (var i = 0; i < framesArray.length; i++) {
-    }
     var frameData = framesArray[currentFrame];
+    if(!frameData) return;
     var frameDataCopy = copyObject(frameData);
     var firstLayer = frameDataCopy["l" + firstPlaceStart];
     var secondLayer = frameDataCopy["l" + secondPlaceStart];
