@@ -221,20 +221,48 @@ function appendNewLayerOption(firstSelect) {
 }
 
 function swapLayerData(obj) {
+  // console.log(obj);
   var firstPlaceStart, firstPlaceEnd, secondPlaceStart, secondPlaceEnd;
 
   var keys = Object.keys(obj);
   firstPlaceStart = keys[0];
   firstPlaceEnd = obj[firstPlaceStart];
 
-  secondPlaceStart = keys[0];
+  secondPlaceStart = keys[1];
   secondPlaceEnd = obj[secondPlaceStart];
 
-  for (var i = 0; i < framesArray.length; i++) {
-    var frameData = framesArray[i];
-    var frameDataCopy = copyObject(frameData);
-    console.log(frameDataCopy);
-  }
+  // (function () {
+  //   for (var i = 0; i < framesArray.length; i++) {
+  //     var frameData = framesArray[i];
+  //     var frameDataCopy = copyObject(frameData);
+  //     var firstLayer = frameDataCopy["l" + firstPlaceStart];
+  //     var secondLayer = frameDataCopy["l" + secondPlaceStart];
+  //
+  //     frameData["l" + firstPlaceEnd] = firstLayer;
+  //     frameData["l" + secondPlaceEnd] = secondLayer;
+  //
+  //     frameData = null;
+  //     frameDataCopy = null;
+  //     firstLayer = null;
+  //     secondLayer = null;
+  //   }
+  // })();
+
+  var frameDataCopy = copyObject(selectedFrameData);
+  // console.log(selectedFrameData);
+  var firstLayer = frameDataCopy["l" + firstPlaceStart];
+  var secondLayer = frameDataCopy["l" + secondPlaceStart];
+
+  selectedFrameData["l" + firstPlaceEnd] = firstLayer;
+  // console.log(selectedFrameData);
+  selectedFrameData["l" + secondPlaceEnd] = secondLayer;
+  // console.log(selectedFrameData);
+
+  frameDataCopy = null;
+  firstLayer = null;
+  secondLayer = null;
+  // console.log(selectedFrameData);
+  reRender();
 }
 
 function newLayer(firstSelect) {
@@ -255,7 +283,7 @@ function getCurrentLayer(numberOnly) {
       break;
     }
   }
-  console.log(layer);
+  // console.log(layer);
   return numberOnly ? layer : "l" + layer;
 }
 
@@ -1107,6 +1135,32 @@ function openImage(place) {
   selectedFrameData = JSON.parse(JSON.stringify(framesArray[place] || {}));
 }
 
+function reRender() {
+  // clearCanvas(null, true);
+  var canvas, ctx;
+  var layers = objDataToImageData(copyObject(selectedFrameData), true);
+  // console.log("layers", layers);
+  var longest = Math.max(layers.length, layerCount);
+  // for (var ind = 0; ind < layerCount; ind++) {
+  for (var ind = 0; ind < longest; ind++) {
+    var imageData = layers[ind];
+    // console.log("image data", imageData);
+    canvas = window["canvas" + ind];
+    if(!canvas) {
+      newLayer();
+      canvas = window["canvas" + ind];
+    }
+    ctx = canvas.getContext("2d");
+    // if the image data is available, put it
+    if(imageData) {
+      ctx.putImageData(imageData, 0, 0);
+    } else {
+      // if it's not available get some generic blank data
+      ctx.putImageData(getBlankCanvasImageData(), 0, 0);
+    }
+  }
+}
+
 function getBlankCanvasImageData() {
   var c = makeCanvas(false, brushoverlay.width, brushoverlay.height, null, true);
   return c.getContext("2d").getImageData(0, 0, brushoverlay.width, brushoverlay.height);
@@ -1394,7 +1448,7 @@ function getCanvasAndContext(isNew, overlay) {
   // isNew - if true, returns a new canvas
   // ovelay - if true, returns the overlay canvas
   var str = "canvas" + getCurrentLayer(true);
-  console.log(str);
+  // console.log(str);
   var thisCanvas = overlay ? brushoverlay : window[str];
   var tempCanvas = isNew ? makeCanvas(overlay, brushoverlay.width, brushoverlay.height, null, true) : thisCanvas;
   // console.log(tempCanvas);
