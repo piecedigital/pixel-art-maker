@@ -231,22 +231,22 @@ function swapLayerData(obj) {
   secondPlaceStart = keys[1];
   secondPlaceEnd = obj[secondPlaceStart];
 
-  // (function () {
-  //   for (var i = 0; i < framesArray.length; i++) {
-  //     var frameData = framesArray[i];
-  //     var frameDataCopy = copyObject(frameData);
-  //     var firstLayer = frameDataCopy["l" + firstPlaceStart];
-  //     var secondLayer = frameDataCopy["l" + secondPlaceStart];
-  //
-  //     frameData["l" + firstPlaceEnd] = firstLayer;
-  //     frameData["l" + secondPlaceEnd] = secondLayer;
-  //
-  //     frameData = null;
-  //     frameDataCopy = null;
-  //     firstLayer = null;
-  //     secondLayer = null;
-  //   }
-  // })();
+  (function () {
+    for (var i = 0; i < framesArray.length; i++) {
+    }
+    var frameData = framesArray[currentFrame];
+    var frameDataCopy = copyObject(frameData);
+    var firstLayer = frameDataCopy["l" + firstPlaceStart];
+    var secondLayer = frameDataCopy["l" + secondPlaceStart];
+
+    frameData["l" + firstPlaceEnd] = firstLayer;
+    frameData["l" + secondPlaceEnd] = secondLayer;
+
+    frameData = null;
+    frameDataCopy = null;
+    firstLayer = null;
+    secondLayer = null;
+  })();
 
   var frameDataCopy = copyObject(selectedFrameData);
   // console.log(selectedFrameData);
