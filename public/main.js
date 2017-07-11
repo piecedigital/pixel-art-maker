@@ -300,7 +300,7 @@ function getCurrentLayer(numberOnly) {
       break;
     }
   }
-  // console.log(layer);
+  console.log(layer);
   return numberOnly ? layer : "l" + layer;
 }
 
@@ -1640,8 +1640,9 @@ function objDataToImageData(data, perLayer) {
   canvas.className = "test";
   var dataOnLayer = [];
 
-  Object.keys(data).map(function (layer) {
-    var layerData = data[layer];
+  Object.keys(data).map(function (_, ind) {
+    var layer = "l" + ind;
+    var layerData = data["l" + ind];
     // console.log("layerData", layer, layerData);
     Object.keys(layerData).map(function (key) {
       var pixelData = layerData[key];
