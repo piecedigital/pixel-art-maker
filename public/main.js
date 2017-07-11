@@ -249,11 +249,13 @@ function getCurrentLayer(numberOnly) {
   for(i = 0; i < layerUIReferences.length; i++) {
     var elem = layerUIReferences[i].querySelector("input");
     // console.log(elem, elem.checked);
+    // console.log(elem.checked);
     if(elem.checked) {
       layer = i;
       break;
     }
   }
+  console.log(layer);
   return numberOnly ? layer : "l" + layer;
 }
 
@@ -1391,7 +1393,9 @@ for(var i = 1; i <= 16; i++) {
 function getCanvasAndContext(isNew, overlay) {
   // isNew - if true, returns a new canvas
   // ovelay - if true, returns the overlay canvas
-  var thisCanvas = overlay ? brushoverlay : window["canvas" + getCurrentLayer(true)];
+  var str = "canvas" + getCurrentLayer(true);
+  console.log(str);
+  var thisCanvas = overlay ? brushoverlay : window[str];
   var tempCanvas = isNew ? makeCanvas(overlay, brushoverlay.width, brushoverlay.height, null, true) : thisCanvas;
   // console.log(tempCanvas);
   var ctx = tempCanvas.getContext("2d");
