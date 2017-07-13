@@ -29,6 +29,7 @@ var listenerFunctions = {},
   mouseDown = false,
   projectSaved = true,
   layerUIReferences = [];
+  copiedFrameData = null;
   selectionState = {
     action: null, // null, selecting, selected
     startPoint: {}, // start selection
@@ -694,11 +695,6 @@ function moveSelection(mouseData) {
   selectionState.pixelsMoved = true;
 }
 
-function copySelected() {
-  console.log("this should copy stuff");
-  console.log(selectionState);
-}
-
 function setPixelsFromSelection(original) {
   var selectionCoordsCurrent = selectionState.data.current;
   var SCCArr = Object.keys(selectionCoordsCurrent);
@@ -1221,8 +1217,6 @@ function newFrame(emptyCanvas) {
       case 2:
         setPixelsFromSelection(true);
         break;
-      default:
-        proceed();
     }
   });
 
@@ -1240,6 +1234,54 @@ function newFrame(emptyCanvas) {
   }
 }
 
+function stepToFrame(dir) {
+  // console.log("next image", emptyCanvas);
+  confirmSelectionMove(function (res) {
+    switch (res) {
+      case 1:
+        setPixelsFromSelection();
+        proceed();
+        break;
+      case 2:
+        setPixelsFromSelection(true);
+        checkUnsavedFrame(function (res) {
+          switch (res) {
+            case 1:
+            proceed();
+            break;
+          }
+        }, 2);
+        break;
+    }
+  });
+
+
+  function proceed() {
+    // index based on direction
+    var dirNum;
+
+    switch (dir) {
+      case "left": dirNum = -1; break;
+      case "right": dirNum = 1; break;
+    }
+
+    storeImageData();
+    if(framesArray[currentFrame + dirNum]) {
+      currentFrame = currentFrame + dirNum;
+      openImage(currentFrame);
+      setCurrentFrame(currentFrame);
+    }
+  }
+}
+
+function nextFrame() {
+  stepToFrame("right");
+}
+
+function prevFrame() {
+  stepToFrame("left");
+}
+
 function removeFrame(place) {
   // removed image data from framesArray
   framesArray.splice(place, 1);
@@ -1249,6 +1291,24 @@ function removeFrame(place) {
 function insertFrame(place) {
   framesArray.splice(place+1, 0, null)
   editFrames(place, "insert");
+}
+
+function copyFrameData(place) {
+  place = parseInt(place) || currentFrame;
+  if(!framesArray[place]) return userConfirm("Unable to copy empty frame", function (res) {
+
+  }, 1);
+  copiedFrameData = copyObject(framesArray[place]);
+  console.log("copied data", copiedFrameData);
+}
+
+function pasteFrameData(place) {
+  place = parseInt(place) || currentFrame;
+  framesArray[place] = copiedFrameData;
+  updateDisplayFrame(place);
+  if(currentFrame === place) openImage(place);
+  copiedFrameData = null;
+  console.log("pasted data", framesArray[place]);
 }
 
 function editFrames(place, action) {
@@ -1764,10 +1824,13 @@ document.addEventListener("keydown", function (e) {
     case "m": setTool("move"); break;
     case "f": setTool("fill"); break;
     case "s": if(!e.ctrlKey) e.shiftKey ? setTool("select") : saveFrame(); break;
-    case "c": if(e.ctrlKey && e.shiftKey) { clearCanvas(); }; if(e.ctrlKey) { copySelected(); } break;
+    case "c": if(e.ctrlKey && e.shiftKey) { clearCanvas(); }; if(e.ctrlKey) { copyFrameData(); } break;
+    case "v": if(e.ctrlKey) { pasteFrameData(); } break;
     case "n": newFrame(e.shiftKey); break;
     case "[": if(e.ctrlKey) goToFrame(currentFrame-1); break;
     case "]": if(e.ctrlKey) goToFrame(currentFrame+1); break;
+    case ".": nextFrame(); break;
+    case ",": prevFrame(); break;
   }
 });
 
