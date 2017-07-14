@@ -12,6 +12,11 @@ body {
   transition: .2s all ease;
 }
 
+img {
+  background-image: url("./transparent.png");
+  background-size: 92px;
+}
+
 .invisible {
   display: none;
 }
@@ -247,13 +252,18 @@ button, select, input, .current-layer > div {
 }
 
 .current-layer > div span {
-  width: 100%;
+  width: 148px;
   font-family: monospace;
+}
+
+.current-layer > div img {
+  width: 32px;
+  height: 32px;
 }
 
 .current-layer > div > div {
   display: flex;
-  width: 50%;
+  width: 100px;
   justify-content: space-between;
 }
 

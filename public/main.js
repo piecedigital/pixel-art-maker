@@ -169,6 +169,7 @@ function appendNewLayerOption(firstSelect) {
   var layer = document.createElement("div");
   var radio = document.createElement("input");
   var layerName = document.createElement("span");
+  var layerImg = document.createElement("img");
   var arrowHolder = document.createElement("div");
   var moveUp = document.createElement("div");
   var moveDown = document.createElement("div");
@@ -177,17 +178,21 @@ function appendNewLayerOption(firstSelect) {
   radio.name = "layers";
   if(firstSelect) radio.checked = true;
 
+  var value = document.querySelectorAll(".canvas").length;
+  layer.className = "layer";
+  layer.value = value;
+  layerName.innerText = "layer" + value;
+
+  layerImg.src = "";
+
   moveUp.addEventListener("click", movePlace.bind(this, "up"))
   moveDown.addEventListener("click", movePlace.bind(this, "down"))
   moveUp.innerText = "UP";
   moveDown.innerText = "DOWN";
 
-  var value = document.querySelectorAll(".canvas").length;
-  layer.value = value;
-  layerName.innerText = "layer" + value;
-
   layer.appendChild(radio);
   layer.appendChild(layerName);
+  layer.appendChild(layerImg);
   arrowHolder.appendChild(moveUp);
   arrowHolder.appendChild(moveDown);
   layer.appendChild(arrowHolder);
@@ -284,6 +289,7 @@ function swapLayerData(obj) {
 }
 
 function newLayer(firstSelect) {
+  if(layerCount > 0) selectedFrameData["l" + (layerCount - 1)] = selectedFrameData["l" + (layerCount - 1)] || {};
   layerCount++;
   totalLayersCounter.innerText = layerCount;
   appendNewLayerOption(firstSelect);
@@ -301,7 +307,7 @@ function getCurrentLayer(numberOnly) {
       break;
     }
   }
-  console.log(layer);
+  // console.log(layer);
   return numberOnly ? layer : "l" + layer;
 }
 
@@ -395,42 +401,44 @@ function mouseAction(obj) {
         // console.log("release");
         switch (brushTool) {
           case "select":
-          selectionState.action = "selected";
+            selectionState.action = "selected";
 
-          // initial data
-          // console.log(mouseData);
-          selectionState.point1 = JSON.parse(JSON.stringify(selectionState.startPoint));
-          selectionState.point2 = JSON.parse(JSON.stringify(mouseData));
+            // initial data
+            // console.log(mouseData);
+            selectionState.point1 = JSON.parse(JSON.stringify(selectionState.startPoint));
+            selectionState.point2 = JSON.parse(JSON.stringify(mouseData));
 
-          if(mouseData.centerX < selectionState.startPoint) {
-            selectionState.point1.centerX = mouseData.centerX;
-            selectionState.point1.left = mouseData.left;
-            selectionState.point2.centerX = selectionState.startPoint.centerX;
-            selectionState.point2.left = selectionState.startPoint.left;
-          }
-          if(mouseData.centerY < selectionState.startPoint) {
-            selectionState.point1.centerY = mouseData.centerY;
-            selectionState.point1.left = mouseData.left;
-            selectionState.point2.centerY = selectionState.startPoint.centerY;
-            selectionState.point2.left = selectionState.startPoint.left;
-          }
-          // console.log(selectionState.point1.centerX, selectionState.point2.centerY);
-          // console.log(selectionState.point1.centerX, selectionState.point2.centerY);
-          var selection = getSelection(obj);
-          // console.log(selection);
-          var simplifiedSelection = simplifySelection(selection);
-          // console.log(simplifiedSelection);
-          var selectedPixels = selectPixels(simplifiedSelection, true);
-          // console.log(selectedPixels)
-          selectionState.data.current = selectedPixels;
-          selectionState.data.moved = selectedPixels;
-          setTool("mover");
-          break;
+            if(mouseData.centerX < selectionState.startPoint) {
+              selectionState.point1.centerX = mouseData.centerX;
+              selectionState.point1.left = mouseData.left;
+              selectionState.point2.centerX = selectionState.startPoint.centerX;
+              selectionState.point2.left = selectionState.startPoint.left;
+            }
+            if(mouseData.centerY < selectionState.startPoint) {
+              selectionState.point1.centerY = mouseData.centerY;
+              selectionState.point1.left = mouseData.left;
+              selectionState.point2.centerY = selectionState.startPoint.centerY;
+              selectionState.point2.left = selectionState.startPoint.left;
+            }
+            // console.log(selectionState.point1.centerX, selectionState.point2.centerY);
+            // console.log(selectionState.point1.centerX, selectionState.point2.centerY);
+            var selection = getSelection(obj);
+            // console.log(selection);
+            var simplifiedSelection = simplifySelection(selection);
+            // console.log(simplifiedSelection);
+            var selectedPixels = selectPixels(simplifiedSelection, true);
+            // console.log(selectedPixels)
+            selectionState.data.current = selectedPixels;
+            selectionState.data.moved = selectedPixels;
+            setTool("mover");
+            break;
           case "mover":
-          selectionState.lastMousePos = {};
-          break;
+            selectionState.lastMousePos = {};
+            break;
+          case "pencil":
+            updateDisplayLayer(currentFrame, getCurrentLayer());
           default:
-          resetSelectionState();
+            resetSelectionState();
         }
       }
     }
@@ -729,6 +737,7 @@ function setPixelsFromSelection(original) {
       selectedFrameData[getCurrentLayer()][coords] = selectionCoordsMoved[coords];
     });
     selectionState.data.current = copyObject(selectionState.data.moved);
+    updateDisplayLayer(currentFrame, getCurrentLayer());
   }
 }
 
@@ -1146,6 +1155,8 @@ function openImage(place) {
     }
   }
   selectedFrameData = JSON.parse(JSON.stringify(framesArray[place] || {}));
+
+  updateDisplayLayer(place, getCurrentLayer());
 }
 
 function reRender() {
@@ -1402,6 +1413,17 @@ function updateDisplayFrame(place) {
   var frame = document.querySelector(".frame.frame-" + place);
   frame.innerHTML = "";
   if(image) frame.appendChild(image);
+}
+
+function updateDisplayLayer(place, layer) {
+  var layerNum = parseInt(layer.replace(/[l]+/ig, ""));
+  var image = currentLayer.querySelector(".layer:nth-child(" + ( layerNum + 1) + ") img");
+
+  var arr = objDataToImageData(selectedFrameData, true);
+  var data = arr[layerNum];
+  // console.log(arr, data);
+  // console.log("layer display:", layer, layerNum, ".layer:nth-child(" + ( layerNum + 1) + ") img", image);
+  image.src = getImageDataURL(data);
 }
 
 function remove(place) {
@@ -1715,6 +1737,7 @@ function objDataToImageData(data, perLayer) {
   var dataOnLayer = [];
 
   Object.keys(data).map(function (_, ind) {
+
     var layer = "l" + ind;
     var layerData = data["l" + ind];
     // console.log("layerData", layer, layerData);
