@@ -1299,16 +1299,28 @@ function copyFrameData(place) {
 
   }, 1);
   copiedFrameData = copyObject(framesArray[place]);
-  console.log("copied data", copiedFrameData);
+  // console.log("copied data", copiedFrameData);
 }
 
 function pasteFrameData(place) {
   place = parseInt(place) || currentFrame;
-  framesArray[place] = copiedFrameData;
-  updateDisplayFrame(place);
-  if(currentFrame === place) openImage(place);
-  copiedFrameData = null;
-  console.log("pasted data", framesArray[place]);
+  if(framesArray[place]) {
+    userConfirm("Are you sure you want to paste the image data here?", function(res) {
+      if(res === 1) {
+        proceed();
+      }
+    }, 2);
+  } else {
+    proceed();
+  }
+
+  function proceed() {
+    framesArray[place] = copiedFrameData;
+    updateDisplayFrame(place);
+    if(currentFrame === place) openImage(place);
+    copiedFrameData = null;
+    // console.log("pasted data", framesArray[place]);
+  }
 }
 
 function editFrames(place, action) {
@@ -1366,7 +1378,9 @@ function createDisplayFrame(place) {
 
 function addDisplayFrame(place) {
   var frame = createDisplayFrame(place);
-  frames.appendChild(frame)
+  frames.appendChild(frame);
+  var fullScrollLeft = frames.scrollWidth - frames.offsetHeight;
+  frames.scrollLeft = fullScrollLeft;
 }
 
 function insertDisplayFrame(place) {
