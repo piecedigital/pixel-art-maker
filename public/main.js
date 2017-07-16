@@ -1460,13 +1460,17 @@ function updateDisplayFrame(place) {
 
 function updateDisplayLayer(place, layer) {
   var layerNum = parseInt(layer.replace(/[l]+/ig, ""));
+  // without layerNum we can do nothing
+  if(!layerNum) return;
   var image = currentLayer.querySelector(".layer:nth-child(" + ( layerNum + 1) + ") img");
 
+  // get data for a specific layer
   var arr = objDataToImageData(selectedFrameData, true);
   var data = arr[layerNum];
   // console.log(arr, data);
   // console.log("layer display:", layer, layerNum, ".layer:nth-child(" + ( layerNum + 1) + ") img", image);
-  image.src = getImageDataURL(data);
+  var imageDataURL = getImageDataURL(data);
+  if(imageDataURL) image.src = imageDataURL;
 }
 
 function remove(place) {

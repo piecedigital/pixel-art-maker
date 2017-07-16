@@ -2,11 +2,11 @@
 var canvas, selectedFrameData, currentLayer, pixelByPixel;
 
 (function () {
-  console.log("worker initiated");
+  console.log("fill tool web worker initiated");
 })();
 
 onmessage = function (e) {
-  console.log("received message", e.data.data);
+  // console.log("received message", e.data.data);
   if(e.data.type === "init") {
     canvas = e.data.data.canvas;
     selectedFrameData = e.data.data.selectedFrameData;
@@ -87,8 +87,8 @@ function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
           // console.log(recur);
         };
       } while (recur <= maxRecur && branches.length > 0);
-      console.log("pixelsToFill", pixelsToFill);
-      console.log("branches", branches);
+      // console.log("pixelsToFill", pixelsToFill);
+      // console.log("branches", branches);
       resolve();
     })
     .then(function () {
