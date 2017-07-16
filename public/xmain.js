@@ -314,6 +314,8 @@ function getCurrentLayer(numberOnly) {
 function mouseGridPosition(e,
   {
     pixel,
+    // canvas,
+    // ctx,
     w,
     h
   }) {
@@ -374,7 +376,7 @@ function mouseAction(obj) {
         mouseDown = true;
         // console.log("press");
         // console.log(mouseData);
-        var newMouseData = copyObject(mouseData);
+        var newMouseData = JSON.parse(JSON.stringify(mouseData));
         switch (brushTool) {
           case "select":
             selectionState.action = null;
@@ -389,50 +391,7 @@ function mouseAction(obj) {
             selectionState.lastMousePos = newMouseData;
             break;
           case "fill":
-            if(window.Worker) {
-              var worker = new Worker("fill-tool-worker.js");
-              var cnc = getCanvasAndContext();
-              worker.postMessage({
-                type: "init",
-                data: {
-                  canvas: {
-                    width: cnc.canvas.width,
-                    height: cnc.canvas.height
-                  },
-                  selectedFrameData: copyObject(selectedFrameData),
-                  currentLayer: getCurrentLayer(),
-                  pixelByPixel: {
-                    value: pixelByPixel.value
-                  },
-                  brushoverlay: {
-                    width: brushoverlay.width,
-                    height: brushoverlay.height
-                  },
-                  colorElement: {
-                    value: colorElement.value
-                  },
-                  initialMouseData: copyObject(mouseData)
-                }
-              });
-              worker.onmessage = function (e) {
-                console.log("Worker responded", e.data);
-                console.log("Terminate worker");
-                worker.terminate();
-
-                setTimeout(function () {
-                  e.data.data.pixelDataArray.map(pixelData => {
-                    drawPixel(pixelData, e.data.data.dontChangeData, e.data.data.alwaysDraw);
-                  });
-                }, 1);
-                // e.data.data.pixelDataArray.map((pixelData, ind) => {
-                //   setTimeout(function (pixelData, dontChangeData, alwaysDraw) {
-                //     drawPixel(pixelData, dontChangeData, alwaysDraw);
-                //   }, 1*ind, pixelData, e.data.data.dontChangeData, e.data.data.alwaysDraw);
-                // });
-              }
-            } else {
-              drawFill(mouseData);
-            }
+            drawFill(mouseData);
             break;
         }
       }
@@ -865,7 +824,6 @@ function drawPixel (data, dontChangeData, alwaysDraw, erase) {
   }
 }
 
-// may be substituted for a web worker
 function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
   // console.log(mouseData);
   var {
@@ -1008,7 +966,6 @@ function getPixel(layer, pixelData, direction) {
     color: pixel ? pixel.color : null
   };
 }
-// end of web worker sub
 
 function drawTool(data) {
   if(brushTool === "select" && selectionState.action) {
@@ -1597,14 +1554,9 @@ function createCanvas() {
 
 // populate options
 for(var i = 1; i <= 16; i++) {
-  var val = i*8;
-  if(640 % val !== 0) {
-    // console.log(640, val, "Remainder:", 640 % val);
-    continue;
-  }
   var opt = document.createElement("option");
-  opt.value = val;
-  opt.innerText = (val) + "x" + (val);
+  opt.value = i*8;
+  opt.innerText = (i*8) + "x" + (i*8);
   pixelByPixel.appendChild(opt);
 }
 
