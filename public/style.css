@@ -289,7 +289,7 @@ button, select, input, .current-layer > div {
   align-items: center;
 }
 
-.current-layer .layer > input {
+.current-layer .layer .layer-radio {
   width: 32px;
   height: 32px;
   margin: 0;
@@ -297,9 +297,17 @@ button, select, input, .current-layer > div {
   font-family: monospace;
 }
 
-.current-layer .layer span {
+.current-layer .layer .layer-name {
   width: 148px;
+  border: none;
+  border-color: none;
+  background-color: transparent;
   font-family: monospace;
+}
+
+.current-layer .layer .layer-name:focus {
+  border-bottom: 1px solid black;
+  background-color: white;
 }
 
 .current-layer .layer img {

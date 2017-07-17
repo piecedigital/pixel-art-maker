@@ -167,20 +167,23 @@ function appendNewCanvasLayer(w, h) {
 function appendNewLayerOption(firstSelect) {
   var layer = document.createElement("div");
   var radio = document.createElement("input");
-  var layerName = document.createElement("span");
+  var layerName = document.createElement("input");
   var layerImg = document.createElement("img");
   var arrowHolder = document.createElement("div");
   var moveUp = document.createElement("div");
   var moveDown = document.createElement("div");
 
+  var value = document.querySelectorAll(".canvas").length;
+  layer.className = "layer";
+  layer.value = value;
+
+  radio.className = "layer-radio";
   radio.type = "radio";
   radio.name = "layers";
   if(firstSelect) radio.checked = true;
 
-  var value = document.querySelectorAll(".canvas").length;
-  layer.className = "layer";
-  layer.value = value;
-  layerName.innerText = "layer" + value;
+  layerName.className = "layer-name";
+  layerName.value = "layer" + value;
 
   layerImg.src = "";
 
@@ -1758,7 +1761,13 @@ function saveRaw() {
     }, 2);
   })
   .then(function () {
-    var string = JSON.stringify(framesArray);
+    var object = {
+      frameData: framesArray,
+      layerNames: currentLayer.querySelectorAll(".layer .layer-name").map(elem => elem.value)
+    };
+
+
+    var string = JSON.stringify(object);
     var blob = new Blob([string], { type: "application/json" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -1788,10 +1797,15 @@ function openRaw(data) {
     var objectData = JSON.parse(convertedData);
 
     // var start = Date.now();
-    objectData.map(function (frame) {
+    objectData.frameData.map(function (frame) {
       selectedFrameData = frame;
       newFrame();
-    })
+    });
+    objectData.layerNames.map(function (name, ind) {
+      var elem = currentLayer.querySelector(".layer:nth-child(" + (ind + 1) + ") .layer-name");
+      elem.value = name;
+      elem = null;
+    });
     // var end = Date.now();
     // console.log("Time:", end-start, "ms");
   });
@@ -1886,6 +1900,7 @@ function objDataToImageData(data, perLayer) {
 
     var layer = "l" + ind;
     var layerData = data["l" + ind];
+    if(!layerData) return;
     // console.log("layerData", layer, layerData);
     Object.keys(layerData).map(function (key) {
       var pixelData = layerData[key];
