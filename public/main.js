@@ -80,10 +80,12 @@ var makeCanvas = function (overlay, w, h, layer, newCanvas) {
 // ///////////////////////////////////////////////////////////
 
 loadProjectInput.onchange = function (e) {
+  // console.log("loaded new file", loadProjectInput.value, loadProjectInput.files);
   var files = e.target.files;
   var fr = new FileReader();
   fr.onload = function () {
     openRaw(fr.result);
+    loadProjectInput.value = "";
   }
   fr.readAsDataURL(files[0]);
 };
