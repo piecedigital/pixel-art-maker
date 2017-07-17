@@ -186,8 +186,17 @@ function appendNewLayerOption(firstSelect) {
 
   moveUp.addEventListener("click", movePlace.bind(this, "up"))
   moveDown.addEventListener("click", movePlace.bind(this, "down"))
-  moveUp.innerText = "UP";
-  moveDown.innerText = "DOWN";
+  // OLD
+  // moveUp.innerText = "UP";
+  // moveDown.innerText = "DOWN";
+  // NEW
+  // the text has been swapped for UI familiarity.
+  // originally the top most layer was at the bottom of the displayed layer
+  // but tools like Photoshop have top layers listed at the top, then ascend
+  // this simple text change keeps the code as is while giving this familiarity
+  // (also there is CSS flex-box code to do the main work of flipping the listed layers)
+  moveUp.innerText = "DOWN";
+  moveDown.innerText = "UP";
 
   layer.appendChild(radio);
   layer.appendChild(layerName);

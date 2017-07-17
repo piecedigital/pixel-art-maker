@@ -278,13 +278,18 @@ button, select, input, .current-layer > div {
   background-color: white;
 }
 
-.current-layer > div {
+.current-layer {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.current-layer .layer {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.current-layer > div > input {
+.current-layer .layer > input {
   width: 32px;
   height: 32px;
   margin: 0;
@@ -292,23 +297,23 @@ button, select, input, .current-layer > div {
   font-family: monospace;
 }
 
-.current-layer > div span {
+.current-layer .layer span {
   width: 148px;
   font-family: monospace;
 }
 
-.current-layer > div img {
+.current-layer .layer img {
   width: 32px;
   height: 32px;
 }
 
-.current-layer > div > div {
+.current-layer .layer > div {
   display: flex;
   width: 100px;
   justify-content: space-between;
 }
 
-.current-layer > div > div > div {
+.current-layer .layer > div > div {
   padding: 4px 5px;
   border-radius: 4px;
   border: 1px solid black;
@@ -316,7 +321,7 @@ button, select, input, .current-layer > div {
   cursor: pointer;
 }
 
-.current-layer > div > div > div:hover {
+.current-layer .layer > div > div:hover {
   background-color: rgba(255,255,255,1);
 }
 
