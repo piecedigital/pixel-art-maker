@@ -976,13 +976,8 @@ function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
 
 function getPixel(layer, pixelData, direction) {
   pixelData = copyObject(pixelData);
-  var diff;
-  switch (direction) {
-    case "up": diff = { centerY: pixelData.centerY - pixelData.height }; break;
-    case "down": diff = { centerY: pixelData.centerY + pixelData.height }; break;
-    case "left": diff = { centerX: pixelData.centerX - pixelData.width }; break;
-    case "right": diff = { centerX: pixelData.centerX + pixelData.width }; break;
-  }
+  var diff = getMouseDataInDirection(pixelData, direction);
+
   // var layer = copyObject(selectedFrameData[getCurrentLayer()] || {});
   var pixel = layer ? layer[makePixelKey(Object.assign(pixelData, diff))] : null;
   if(pixel && pixel.color !== pixelData.color) {
@@ -1008,6 +1003,15 @@ function getPixel(layer, pixelData, direction) {
   };
 }
 // end of web worker sub
+
+function getMouseDataInDirection(mouseData, dir) {
+  switch (dir) {
+    case "up": return { centerY: mouseData.centerY - mouseData.height };
+    case "down": return { centerY: mouseData.centerY + mouseData.height };
+    case "left": return { centerX: mouseData.centerX - mouseData.width };
+    case "right": return { centerX: mouseData.centerX + mouseData.width };
+  }
+}
 
 function drawTool(data) {
   recolorBrush(data);
@@ -1041,68 +1045,78 @@ function drawTool(data) {
   }
 }
 
-function recolorBrush(mouseData) {
-  var rgb, rgbAvg;
-  var coords = makePixelKey(mouseData);
+function recolorBrush(mouseDataStartPoint) {
+  var mouseDataArray = [], directionArray = ["up", "down", "left", "right"];
 
-  var availableLayer = layerCount - 1;
-  var pixelData;
-  do{
-    // console.log(availableLayer);
-    if(
-      selectedFrameData["l" + availableLayer] &&
-      selectedFrameData["l" + availableLayer][coords]
-    ) {
-      // console.log(selectedFrameData["l" + availableLayer]);
-      // console.log(selectedFrameData["l" + availableLayer][coords]);
-      pixelData = selectedFrameData["l" + availableLayer][coords];
-      break;
-    } else {
-      availableLayer--;
+  directionArray.map(function (dir) {
+    mouseDataArray.push(
+      Object.assign(copyObject(mouseDataStartPoint), getMouseDataInDirection(mouseDataStartPoint, dir))
+    );
+  });
+  // return;
+  mouseDataArray.map(function (mouseData, ind) {
+    var rgb, rgbAvg;
+    var coords = makePixelKey(mouseData);
+
+    var availableLayer = layerCount - 1;
+    var pixelData;
+    do{
+      // console.log(availableLayer);
+      if(
+        selectedFrameData["l" + availableLayer] &&
+        selectedFrameData["l" + availableLayer][coords]
+      ) {
+        // console.log(selectedFrameData["l" + availableLayer]);
+        // console.log(selectedFrameData["l" + availableLayer][coords]);
+        pixelData = selectedFrameData["l" + availableLayer][coords];
+        break;
+      } else {
+        availableLayer--;
+      }
+    } while(availableLayer >= 0);
+
+    if(!pixelData) pixelData = { color: "#fff" }
+
+    // console.log(pixelData);
+    rgb = hexToRgb( pixelData.color );
+    rgbAvg = (rgb.r + rgb.g + rgb.b) / 3;
+
+    var lowerAvg = 255 / 3;
+    var middleAvg = 255 / 2;
+    var highAvg = 255 / 1.25;
+
+    // console.log(rgbAvg, coords, selectedFrameData[getCurrentLayer()] ? selectedFrameData[getCurrentLayer()][coords].color : null);
+
+    if(rgbAvg <= lowerAvg) {
+      // console.log("dark");
+      setWhite();
+      return;
     }
-  } while(availableLayer >= 0);
+    if(rgbAvg >= lowerAvg && rgbAvg <= middleAvg) {
+      // console.log("dim");
+      setWhite();
+      return;
+    }
+    if(rgbAvg >= middleAvg && rgbAvg <= highAvg) {
+      // console.log("light");
+      setBlack();
+      return;
+    }
+    if(rgbAvg >= highAvg) {
+      // console.log("bright");
+      setBlack();
+      return;
+    }
 
-  if(!pixelData) pixelData = { color: "#fff" }
-
-  // console.log(pixelData);
-  rgb = hexToRgb( pixelData.color );
-  rgbAvg = (rgb.r + rgb.g + rgb.b) / 3;
-
-  var lowerAvg = 255 / 3;
-  var middleAvg = 255 / 2;
-  var highAvg = 255 / 1.25;
-
-  // console.log(rgbAvg, coords, selectedFrameData[getCurrentLayer()] ? selectedFrameData[getCurrentLayer()][coords].color : null);
-
-  if(rgbAvg <= lowerAvg) {
-    // console.log("dark");
-    setWhite();
-    return;
-  }
-  if(rgbAvg >= lowerAvg && rgbAvg <= middleAvg) {
-    // console.log("dim");
-    setWhite();
-    return;
-  }
-  if(rgbAvg >= middleAvg && rgbAvg <= highAvg) {
-    // console.log("light");
-    setBlack();
-    return;
-  }
-  if(rgbAvg >= highAvg) {
-    // console.log("bright");
-    setBlack();
-    return;
-  }
-
-  function setBlack() {
-    cursor.removeClass("white");
-    cursor.addClass("black");
-  }
-  function setWhite() {
-    cursor.removeClass("black");
-    cursor.addClass("white");
-  }
+    function setBlack() {
+      cursor.removeClass("white-" + directionArray[ind]);
+      cursor.addClass("black-" + directionArray[ind]);
+    }
+    function setWhite() {
+      cursor.removeClass("black-" + directionArray[ind]);
+      cursor.addClass("white-" + directionArray[ind]);
+    }
+  });
 }
 
 function setTool(toolName) {
@@ -1771,8 +1785,7 @@ function openRaw(data) {
     })
     // var end = Date.now();
     // console.log("Time:", end-start, "ms");
-  })
-  .catch(e => console.error(e));
+  });
 }
 
 function loadProject(e) {

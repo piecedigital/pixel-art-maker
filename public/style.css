@@ -154,12 +154,30 @@ img {
   border: 4px solid black;
 }
 
-#cursor.black:after {
-  border-color: rgba(0, 0, 0, 1);
+#cursor.black-up:after {
+  border-top-color: rgba(0, 0, 0, 1);
+}
+#cursor.black-down:after {
+  border-bottom-color: rgba(0, 0, 0, 1);
+}
+#cursor.black-left:after {
+  border-left-color: rgba(0, 0, 0, 1);
+}
+#cursor.black-right:after {
+  border-right-color: rgba(0, 0, 0, 1);
 }
 
-#cursor.white:after {
-  border-color: rgba(255, 255, 255, 1);
+#cursor.white-up:after {
+  border-top-color: rgba(255, 255, 255, 1);
+}
+#cursor.white-down:after {
+  border-bottom-color: rgba(255, 255, 255, 1);
+}
+#cursor.white-left:after {
+  border-left-color: rgba(255, 255, 255, 1);
+}
+#cursor.white-right:after {
+  border-right-color: rgba(255, 255, 255, 1);
 }
 
 .tools {}
