@@ -54,39 +54,41 @@ function drawFill (mouseData, dontChangeData, alwaysDraw, erase) {
   // console.log(branches);
   setTimeout(function () {
     new Promise(function(resolve, reject) {
-      do {
-        for(var i = 0; i < branches.length; i++) {
-          var refPixel = branches[i], branchIndex = i;
-          var pixelsCaptured = [];
-          // directions.slice(0+t,1+t).filter(function (dir) {
-          directions.filter(function (dir) {
-            var data = getPixel(layer, refPixel, dir);
+      // var start = Date.now();
+      for(var i = 0; i < branches.length; i++) {
+        var refPixel = branches[i];
+        var pixelsCaptured = [];
 
-            if(data) {
-              // console.log(data.centerX, data.centerY);
-              if(
-                data.centerX > 0 && data.centerY > 0 &&
-                data.centerX < brushoverlay.width && data.centerY < brushoverlay.height
-              ) pixelsCaptured.push(data);
-            }
-          });
+        var dir
+        for (var j = 0; j < directions.length; j++) {
+          dir = directions[j];
 
-          // if(pixelsCaptured.length < 4) console.log("not getting everything");
-          // console.log("captured", pixelsCaptured);
+          var data = getPixel(layer, refPixel, dir);
 
-          pixelsCaptured.map(function (data) {
-            if(pixelsToFill.indexOf(makePixelKey(data)) === -1) {
-              pixelsToFill.push(makePixelKey(data));
-              branches.push(data);
-              recur++;
-            }
-          });
+          if(data) {
+            if(
+              data.centerX > 0 && data.centerY > 0 &&
+              data.centerX < brushoverlay.width && data.centerY < brushoverlay.height
+            ) pixelsCaptured.push(data);
+          }
+        }
 
-          branches.splice(branchIndex, 1);
-          i--;
-          // console.log(recur);
-        };
-      } while (recur <= maxRecur && branches.length > 0);
+        var capturedPixelData;
+        for (var k = 0; k < pixelsCaptured.length; k++) {
+          capturedPixelData = pixelsCaptured[k];
+
+          if(pixelsToFill.indexOf(makePixelKey(capturedPixelData)) === -1) {
+            pixelsToFill.push(makePixelKey(capturedPixelData));
+            branches.push(capturedPixelData);
+            recur++;
+          }
+        }
+
+        branches.splice(i, 1);
+        i--;
+      };
+      // var end = Date.now();
+      // console.log("Time:", end-start, "ms");
       // console.log("pixelsToFill", pixelsToFill);
       // console.log("branches", branches);
       resolve();

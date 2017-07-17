@@ -15,6 +15,7 @@ var canvasLayers = workArea.querySelector(".canvas-layers");
 var currentLayer = workArea.querySelector(".current-layer");
 var totalLayersCounter = workArea.querySelector(".total-layers");
 var loadProjectInput = workArea.querySelector(".load-project");
+var colorElement = document.querySelector(".color");
 
 // variables
 var listenerFunctions = {},
@@ -77,8 +78,6 @@ var makeCanvas = function (overlay, w, h, layer, newCanvas) {
   return thisCanvas;
 }
 // ///////////////////////////////////////////////////////////
-
-var colorElement = document.querySelector(".color");
 
 loadProjectInput.onchange = function (e) {
   var files = e.target.files;
@@ -1011,6 +1010,7 @@ function getPixel(layer, pixelData, direction) {
 // end of web worker sub
 
 function drawTool(data) {
+  recolorBrush(data);
   if(brushTool === "select" && selectionState.action) {
     switch (selectionState.action) {
       case "selecting":
@@ -1038,6 +1038,70 @@ function drawTool(data) {
     cursor.style.top = data.centerY - (data.height / 2) + "px";
     cursor.style.width = data.width + "px";
     cursor.style.height = data.height + "px";
+  }
+}
+
+function recolorBrush(mouseData) {
+  var rgb, rgbAvg;
+  var coords = makePixelKey(mouseData);
+
+  var availableLayer = layerCount - 1;
+  var pixelData;
+  do{
+    // console.log(availableLayer);
+    if(
+      selectedFrameData["l" + availableLayer] &&
+      selectedFrameData["l" + availableLayer][coords]
+    ) {
+      // console.log(selectedFrameData["l" + availableLayer]);
+      // console.log(selectedFrameData["l" + availableLayer][coords]);
+      pixelData = selectedFrameData["l" + availableLayer][coords];
+      break;
+    } else {
+      availableLayer--;
+    }
+  } while(availableLayer >= 0);
+
+  if(!pixelData) pixelData = { color: "#fff" }
+
+  // console.log(pixelData);
+  rgb = hexToRgb( pixelData.color );
+  rgbAvg = (rgb.r + rgb.g + rgb.b) / 3;
+
+  var lowerAvg = 255 / 3;
+  var middleAvg = 255 / 2;
+  var highAvg = 255 / 1.25;
+
+  // console.log(rgbAvg, coords, selectedFrameData[getCurrentLayer()] ? selectedFrameData[getCurrentLayer()][coords].color : null);
+
+  if(rgbAvg <= lowerAvg) {
+    // console.log("dark");
+    setWhite();
+    return;
+  }
+  if(rgbAvg >= lowerAvg && rgbAvg <= middleAvg) {
+    // console.log("dim");
+    setWhite();
+    return;
+  }
+  if(rgbAvg >= middleAvg && rgbAvg <= highAvg) {
+    // console.log("light");
+    setBlack();
+    return;
+  }
+  if(rgbAvg >= highAvg) {
+    // console.log("bright");
+    setBlack();
+    return;
+  }
+
+  function setBlack() {
+    cursor.removeClass("white");
+    cursor.addClass("black");
+  }
+  function setWhite() {
+    cursor.removeClass("black");
+    cursor.addClass("white");
   }
 }
 
@@ -1086,7 +1150,7 @@ function clearCanvas(overlay, full) {
   }
   // erase
   ctxArr.map((ctx, ind) => {
-    console.log(ind);
+    // console.log(ind);
     ctx.globalCompositeOperation = "destination-out"
     ctx.fillStyle = "rgba(255,255,255,1)";
     ctx.fillRect(0, 0, brushoverlay.width, brushoverlay.height);
@@ -1199,7 +1263,9 @@ function openImage(place) {
   }
   selectedFrameData = JSON.parse(JSON.stringify(framesArray[place] || {}));
 
-  updateDisplayLayer(place, getCurrentLayer());
+  for (var i = 0; i < layerCount; i++) {
+    updateDisplayLayer(place, "l" + i);
+  }
 }
 
 function reRender() {
@@ -1391,7 +1457,7 @@ function editFrames(place, action) {
   // change class and dataset of the frames ahead
   for(var i = place+1; i < framesArray.length+(action === "remove" ? 1 : -1); i++) {
     var elem = frames.querySelectorAll(".frame.frame-" + i).slice(-1)[0];
-    // console.log("changing", i, elem, ".frame.frame-" + i);
+    console.log("changing", i, elem, ".frame.frame-" + i);
     elem.className = elem.className.replace(/frame\-[0-9]+/, "frame-" + (i+number));
     elem.dataset.frame = (i+number);
   }
@@ -1459,10 +1525,13 @@ function updateDisplayFrame(place) {
 }
 
 function updateDisplayLayer(place, layer) {
+  // console.log(place, layer);
   var layerNum = parseInt(layer.replace(/[l]+/ig, ""));
+  // console.log(layerNum, typeof layerNum !== "number");
   // without layerNum we can do nothing
-  if(!layerNum) return;
+  if(typeof layerNum !== "number") return;
   var image = currentLayer.querySelector(".layer:nth-child(" + ( layerNum + 1) + ") img");
+  // console.log(".layer:nth-child(" + ( layerNum + 1) + ") img", image);
 
   // get data for a specific layer
   var arr = objDataToImageData(selectedFrameData, true);
@@ -1695,10 +1764,13 @@ function openRaw(data) {
     var convertedData = atob(strippedData);
     var objectData = JSON.parse(convertedData);
 
+    // var start = Date.now();
     objectData.map(function (frame) {
       selectedFrameData = frame;
       newFrame();
     })
+    // var end = Date.now();
+    // console.log("Time:", end-start, "ms");
   })
   .catch(e => console.error(e));
 }
@@ -1902,6 +1974,29 @@ function stripPixelKey(data) {
     centerX: parseInt(splitStr[0]),
     centerY: parseInt(splitStr[1])
   }
+}
+
+function hexToRgb(hex) {
+    // https://stackoverflow.com/a/5624139/4107851
+    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+    var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+        return r + r + g + g + b + b;
+    });
+
+    // gets
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    // console.log(result[1], result[2], result[3]);
+    // console.log(
+    //   parseInt(result[1], 16),
+    //   parseInt(result[2], 16),
+    //   parseInt(result[3], 16)
+    // );
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
 }
 
 // buttons events
