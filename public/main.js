@@ -186,6 +186,10 @@ function appendNewLayerOption(firstSelect) {
 
   layerName.className = "layer-name";
   layerName.value = "layer" + value;
+  layerName.addEventListener("keydown", e => {
+    e.stopPropagation();
+    e.key === "Enter" ? layerName.blur() : null;
+  });
 
   layerImg.src = "";
 
@@ -1765,9 +1769,9 @@ function saveRaw() {
   .then(function () {
     var object = {
       frameData: framesArray,
-      layerNames: currentLayer.querySelectorAll(".layer .layer-name").map(elem => elem.value)
+      layerNames: currentLayer.querySelectorAll(".layer .layer-name").map(elem => elem.value),
+      pixelByPixel: pixelByPixel.value
     };
-
 
     var string = JSON.stringify(object);
     var blob = new Blob([string], { type: "application/json" });
@@ -1776,7 +1780,6 @@ function saveRaw() {
     a.setAttribute("download", "pixel-box-gif.json");
     a.click();
   })
-  .catch(e => console.error(e));
 }
 
 function openRaw(data) {
@@ -1793,15 +1796,18 @@ function openRaw(data) {
     }, 2);
   })
   .then(function () {
-    createCanvas();
     var strippedData = data.split(",").pop();
     var convertedData = atob(strippedData);
     var objectData = JSON.parse(convertedData);
+    pixelByPixel.value = objectData.pixelByPixel;
+    createCanvas();
 
     // var start = Date.now();
     objectData.frameData.map(function (frame) {
-      selectedFrameData = frame;
-      newFrame();
+      if(frame) {
+        selectedFrameData = frame;
+        newFrame();
+      }
     });
     objectData.layerNames.map(function (name, ind) {
       var elem = currentLayer.querySelector(".layer:nth-child(" + (ind + 1) + ") .layer-name");
